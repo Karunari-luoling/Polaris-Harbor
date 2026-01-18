@@ -1,0 +1,67 @@
+seo:
+  title: "极昼星港 | 主页"
+  description: "白夜的个人主页，展示了他的项目、网站和技术文章。"
+  keywords: "极昼星港, 个人主页, 项目, 网站, 技术文章"
+  author: "白夜"
+  ogImage: "https://blog.byer.ink/api/pro/f/7aadI/ScreenShot_2026-01-17_220210_662.png"
+
+# Theme Configuration
+# mode: 'auto' (System Preference), 'manual' (Fixed Default), 'custom' (Time Schedule)
+theme:
+  mode: "auto" 
+  default: "light" # Used for manual mode or fallback
+  customSchedule:
+    start: "19:00" # Start Dark Mode
+    end: "07:00"   # End Dark Mode (Start Light Mode)
+
+profile:
+  name: "白夜"
+  avatar: "https://blog.byer.ink/api/pro/f/4GOG/ava.jpg"
+  title: "极昼星港"
+  tagline: "这里是我构建数字世界的角落，也是思考与灵感的安放之处。我享受从无到有的创造过程，相信代码是另一种形式的诗篇。"
+  description: "我是白夜，一个后端开发工程师。我喜欢学习新鲜技术。我也喜欢分享我的知识和经验。"
+  social:
+    - platform: "GitHub"
+      url: "https://github.com/Karunari-luoling"
+      icon: "github" # Uses internal Lucide Icon
+    - platform: "Email"
+      url: "mailto:1842105028@qq.com"
+      icon: "mail"
+    - platform: "Blog"
+      url: "https://blog.byer.ink"
+      icon: "rss"
+
+site:
+  #logoText: "BYER"
+  logoImage: "https://blog.byer.ink/api/pro/f/uZ2G/favicon.gif"
+  brandName: "极昼星港"
+  favicon: "https://blog.byer.ink/api/pro/f/B3j0/favicon.ico"
+  rssUrl: "https://blog.byer.ink/feed.xml"
+  # URL for external icon library CSS (e.g. Alibaba Iconfont or FontAwesome)
+  # iconFontUrl: "//at.alicdn.com/t/c/font_YOUR_PROJECT_ID.css"
+
+dataSources:
+  projects:
+    type: "local"   # Options: 'local' (file in public root) or 'remote' (absolute URL)
+    format: "yml"   # Options: 'yml' or 'json'
+    path: "data/projects.yml"
+  websites:
+    type: "local"
+    format: "yml"
+    path: "data/websites.yml"
+
+display:
+  projectCount: 1
+  websiteCount: 6
+  articleCount: 3
+
+footer:
+  owner: "白夜"
+  icp: "豫ICP备2023029433号-2"
+  links:
+    - text: "博客"
+      url: "https://blog.byer.ink"
+    - text: "极昼星港"
+      url: "https://www.byer.ink"
+    - text: "Polaris Harbor"
+      url: "https://github.com/Karunari-luoling/Polaris-Harbor"
