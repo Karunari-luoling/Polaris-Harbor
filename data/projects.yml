@@ -2,7 +2,13 @@
   title: '极昼星港 | Polaris Harbor'
   description: '这里是我构建数字世界的角落，也是思考与灵感的安放之处。我享受从无到有的创造过程，相信代码是另一种形式的诗篇。'
   imageUrl: 'https://blog.byer.ink/api/pro/f/7aadI/ScreenShot_2026-01-17_220210_662.png'
-  tags: ['React']
+  tags: ['React','TailwindCSS','Polaris Harbor']
   link: 'https://www.byer.ink'
   repo: 'https://github.com/Karunari-luoling/Polaris-Harbor'
-
+- id: '2'
+  title: '洛天依Grub主题'
+  description: '一个好看的洛天依的Grub主题'
+  imageUrl: 'https://blog.byer.ink/api/pro/f/LQ8pU/1768140622136896153.jpg'
+  tags: ['Grub', '洛天依']
+  link: 'https://blog.byer.ink/posts/HuV1'
+  repo: 'https://github.com/Karunari-luoling/LuoTianYi_GrubTheme'

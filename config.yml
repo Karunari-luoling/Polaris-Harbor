@@ -8,7 +8,7 @@ seo:
 # Theme Configuration
 # mode: 'auto' (System Preference), 'manual' (Fixed Default), 'custom' (Time Schedule)
 theme:
-  mode: "auto" 
+  mode: "custom" 
   default: "light" # Used for manual mode or fallback
   customSchedule:
     start: "19:00" # Start Dark Mode
