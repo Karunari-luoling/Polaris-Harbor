@@ -38,7 +38,7 @@ site:
   logoImage: "https://blog.byer.ink/api/pro/f/uZ2G/favicon.gif"
   brandName: "极昼星港"
   favicon: "https://blog.byer.ink/api/pro/f/B3j0/favicon.ico"
-  rssUrl: "https://blog.byer.ink/feed.xml"
+  rssUrl: "https://blog.byer.ink/atom.xml"
   # 头像/logo/favicon/ogImage 的域名会自动生成 preconnect 提示；图床经过 302 跳转后
   # 的真实主机推导不出来，需要列在这里补上。
   extraPreconnect:

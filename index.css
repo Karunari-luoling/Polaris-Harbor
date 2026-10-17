@@ -2,30 +2,1111 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   Polaris Harbor — 雨夜星港视觉系统
+   深色：雨夜 / 码头灯火 / 湿润反光   浅色：清晨薄雾 / 米白纸质 / 铜色阳光
+   所有颜色都走 CSS 变量，组件里不再散落 slate-800 / blue-500 这类硬编码色值。
+   ========================================================================== */
 @layer base {
+  :root {
+    color-scheme: light;
+
+    --bg-0: #f3efe4;
+    --bg-1: #eae4d6;
+    --ink: #12202f;
+    --ink-strong: #08131f;
+    --muted: #55677a;
+    --faint: #7f8b98;
+
+    --line: rgba(18, 32, 47, 0.12);
+    --line-strong: rgba(18, 32, 47, 0.22);
+    --panel: rgba(255, 252, 244, 0.58);
+    --panel-strong: rgba(255, 253, 247, 0.86);
+    --card-top: rgba(255, 253, 247, 0.94);
+    --card-bottom: rgba(250, 245, 235, 0.76);
+    --inner-sheen: rgba(255, 255, 255, 0.9);
+
+    --accent: #0f766e;
+    --accent-strong: #0b5d57;
+    --accent-soft: rgba(15, 118, 110, 0.1);
+    --lamp: #b45309;
+    --lamp-bright: #d97706;
+    --lamp-ink: #fffaf0;
+    --lamp-soft: rgba(180, 83, 9, 0.1);
+
+    --glow-teal: rgba(13, 148, 136, 0.16);
+    --glow-lamp: rgba(217, 119, 6, 0.12);
+    --grid: rgba(18, 32, 47, 0.045);
+    --thumb: rgba(18, 32, 47, 0.26);
+    --vignette: rgba(120, 100, 70, 0.08);
+
+    /* 湖面：浅色下是一池被晨光泡开的青灰水 */
+    --lake-surface-0: #d8e5df;
+    --lake-surface-1: #a4c6c0;
+    --lake-surface-2: #7fa9a3;
+    --lake-sky: rgba(255, 255, 255, 0.6);
+    --lake-glint: rgba(255, 255, 255, 0.9);
+    --lake-glint-soft: rgba(255, 246, 222, 0.66);
+    --lake-moon: #fff6df;
+    --lake-moon-halo: rgba(255, 236, 194, 0.5);
+    --lake-wash-top: rgba(45, 96, 92, 0.42);
+    --lake-wash-bottom: rgba(20, 55, 60, 0.5);
+    --lake-veil: rgba(170, 198, 193, 0.36);
+    --lake-veil-strong: rgba(140, 174, 169, 0.5);
+    --lake-fade-mid: rgba(243, 239, 228, 0.55);
+    --lake-fade-bottom: rgba(243, 239, 228, 0.98);
+    --lake-reflect-filter: brightness(0.6) saturate(0.52) contrast(1.05);
+    --lake-reflect-opacity: 0.46;
+  }
+
+  html.dark {
+    color-scheme: dark;
+
+    --bg-0: #04080f;
+    --bg-1: #07111d;
+    --ink: #f3ecd9;
+    --ink-strong: #fff8e7;
+    --muted: #9fb2c6;
+    --faint: #6f8499;
+
+    --line: rgba(196, 224, 255, 0.11);
+    --line-strong: rgba(196, 224, 255, 0.22);
+    --panel: rgba(8, 17, 29, 0.55);
+    --panel-strong: rgba(10, 21, 35, 0.86);
+    --card-top: rgba(13, 26, 42, 0.92);
+    --card-bottom: rgba(5, 12, 21, 0.88);
+    --inner-sheen: rgba(196, 224, 255, 0.09);
+
+    --accent: #6ee7b7;
+    --accent-strong: #a7f3d0;
+    --accent-soft: rgba(110, 231, 183, 0.1);
+    --lamp: #ffc46e;
+    --lamp-bright: #ffd79a;
+    --lamp-ink: #1a1105;
+    --lamp-soft: rgba(255, 196, 110, 0.1);
+
+    --glow-teal: rgba(45, 212, 191, 0.16);
+    --glow-lamp: rgba(255, 169, 79, 0.14);
+    --grid: rgba(143, 214, 255, 0.05);
+    --thumb: rgba(196, 224, 255, 0.24);
+    --vignette: rgba(0, 0, 0, 0.5);
+
+    /* 湖面：深夜的墨蓝，反光偏冷，只有月影与码头灯是暖的 */
+    --lake-surface-0: #0c2230;
+    --lake-surface-1: #071a27;
+    --lake-surface-2: #030c14;
+    --lake-sky: rgba(143, 214, 255, 0.14);
+    --lake-glint: rgba(214, 242, 255, 0.72);
+    --lake-glint-soft: rgba(255, 226, 178, 0.46);
+    --lake-moon: #fff7e0;
+    --lake-moon-halo: rgba(255, 235, 184, 0.55);
+    --lake-wash-top: rgba(30, 96, 104, 0.28);
+    --lake-wash-bottom: rgba(8, 36, 48, 0.56);
+    --lake-veil: rgba(4, 14, 22, 0.38);
+    --lake-veil-strong: rgba(3, 9, 15, 0.58);
+    --lake-fade-mid: rgba(4, 8, 15, 0.55);
+    --lake-fade-bottom: rgba(4, 8, 15, 0.98);
+    --lake-reflect-filter: brightness(1.08) saturate(1.04) contrast(1.02);
+    --lake-reflect-opacity: 0.5;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-color: var(--thumb) transparent;
+    scrollbar-width: thin;
+    overflow-x: clip;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     font-family: theme(fontFamily.sans);
+    background-color: var(--bg-0);
+    color: var(--ink);
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    transition: background-color 500ms ease, color 500ms ease;
+  }
+
+  ::selection {
+    background: var(--lamp);
+    color: var(--lamp-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--bg-0);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--thumb);
+    border: 3px solid var(--bg-0);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--lamp);
   }
 }
 
-::-webkit-scrollbar {
-  width: 8px;
+@layer components {
+  .shell {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .shell {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .shell {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* ---- 表面材质 ---------------------------------------------------------- */
+  .glass {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: inset 0 1px 0 var(--inner-sheen), 0 30px 70px -50px rgba(0, 0, 0, 0.8);
+  }
+
+  .glass-strong {
+    background: var(--panel-strong);
+    border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    box-shadow: inset 0 1px 0 var(--inner-sheen), 0 36px 90px -46px rgba(0, 0, 0, 0.9);
+  }
+
+  .card-surface {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: linear-gradient(170deg, var(--card-top) 0%, var(--card-bottom) 100%);
+    box-shadow: inset 0 1px 0 var(--inner-sheen), 0 34px 80px -56px rgba(0, 0, 0, 0.9);
+  }
+
+  /* 卡片右上角的一团环境光，hover 时亮起，模拟橱窗灯的余晖 */
+  .card-surface::after {
+    content: '';
+    position: absolute;
+    top: -38%;
+    right: -22%;
+    width: 62%;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: radial-gradient(circle, var(--glow-lamp) 0%, transparent 68%);
+    opacity: 0.45;
+    pointer-events: none;
+    transition: opacity 600ms ease;
+  }
+
+  .group:hover > .card-surface::after,
+  .group:hover.card-surface::after,
+  .group:hover > .card-lift::after {
+    opacity: 0.9;
+  }
+
+  .card-lift {
+    transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1), border-color 500ms ease,
+      box-shadow 500ms ease;
+  }
+
+  .card-lift:hover {
+    transform: translateY(-6px);
+    border-color: var(--line-strong);
+    box-shadow: inset 0 1px 0 var(--inner-sheen), 0 44px 90px -50px var(--glow-teal),
+      0 28px 60px -50px rgba(0, 0, 0, 0.8);
+  }
+
+  /* ---- 字体与色彩 -------------------------------------------------------- */
+  .eyebrow {
+    font-family: theme(fontFamily.mono);
+    font-size: 0.64rem;
+    line-height: 1.4;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--lamp);
+  }
+
+  .hero-name {
+    background: linear-gradient(112deg, #fff8e7 0%, #ffe2b4 36%, #ffc46e 60%, #93f0d6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 18px 60px rgba(255, 196, 110, 0.18));
+  }
+
+  html:not(.dark) .hero-name {
+    background: linear-gradient(112deg, #0a1a2a 0%, #0f766e 48%, #b45309 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    filter: drop-shadow(0 16px 40px rgba(15, 118, 110, 0.14));
+  }
+
+  /* ---- 按钮 / 链接 ------------------------------------------------------- */
+  .btn-lamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border-radius: 999px;
+    padding: 0.8rem 1.35rem;
+    background: linear-gradient(135deg, var(--lamp-bright) 0%, var(--lamp) 100%);
+    color: var(--lamp-ink);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    box-shadow: 0 16px 44px -22px var(--lamp);
+    transition: transform 300ms ease, box-shadow 300ms ease, filter 300ms ease;
+  }
+
+  .btn-lamp:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.04);
+    box-shadow: 0 22px 54px -20px var(--lamp);
+  }
+
+  .btn-lamp:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 0.7rem 1.15rem;
+    color: var(--muted);
+    font-family: theme(fontFamily.mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    transition: color 300ms ease, border-color 300ms ease, background-color 300ms ease,
+      transform 300ms ease;
+  }
+
+  .btn-ghost:hover {
+    color: var(--lamp);
+    border-color: var(--lamp);
+    background: var(--lamp-soft);
+    transform: translateY(-1px);
+  }
+
+  .link-arrow {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--lamp);
+    font-family: theme(fontFamily.mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .link-arrow::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -5px;
+    height: 1px;
+    width: 100%;
+    transform: scaleX(0.3);
+    transform-origin: left;
+    background: linear-gradient(90deg, var(--lamp), transparent);
+    transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .link-arrow:hover::after {
+    transform: scaleX(1);
+  }
+
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.28rem 0.6rem;
+    color: var(--faint);
+    background: var(--accent-soft);
+    font-family: theme(fontFamily.mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .rule-glow {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line-strong) 20%, var(--line-strong) 80%,
+        transparent);
+  }
+
+  /* ---- 首屏 -------------------------------------------------------------- */
+  .avatar-halo {
+    background: conic-gradient(
+      from 140deg,
+      rgba(255, 196, 110, 0.9),
+      rgba(110, 231, 183, 0.75),
+      rgba(143, 230, 255, 0.65),
+      rgba(255, 196, 110, 0.9)
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  }
+
+  .orbit-ring {
+    border: 1px dashed var(--line-strong);
+    animation: orbit 48s linear infinite;
+  }
+
+  .status-dot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    animation: soft-ping 3.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* ---- 3D 轮播：湖面与倒影 ---------------------------------------------- */
+  /* 湖面在文档流里只占一条高度，真正的湖体是 backdrop，会向上长到侧卡底边。 */
+  .lake-zone {
+    --moon-size: clamp(28px, 3.2vw, 46px);
+    position: relative;
+    /* 负层级 + 根节点的 isolate：湖面永远垫在卡片和文章内容后面 */
+    z-index: -1;
+    width: 100%;
+    pointer-events: none;
+  }
+
+  /* 画布故意比内容栏宽很多，湖面因此不再被 .shell 的 max-width 切出空隙；
+     卡片始终落在湖心。超出视口的部分由 body 的 overflow-x:hidden 收掉。 */
+  .lake-canvas {
+    position: absolute;
+    left: 50%;
+    width: 120vw;
+    margin-left: -60vw;
+    z-index: 0;
+    isolation: isolate;
+    pointer-events: none;
+    animation: lake-reveal 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* 水色本体：一条带模糊的 SVG path，边缘不是裁出来的硬边，而是自然化开。 */
+  .lake-water-svg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* SVG 渐变的 stop 通过 CSS 类着色，主题变量会正常随 html.dark 切换 */
+  .lake-stop-top {
+    stop-color: var(--lake-surface-0);
+    stop-opacity: 0.15;
+  }
+
+  .lake-stop-top-strong {
+    stop-color: var(--lake-surface-0);
+    stop-opacity: 0.92;
+  }
+
+  .lake-stop-mid {
+    stop-color: var(--lake-surface-1);
+    stop-opacity: 1;
+  }
+
+  .lake-stop-deep {
+    stop-color: var(--lake-surface-2);
+    stop-opacity: 0.8;
+  }
+
+  .lake-stop-end {
+    stop-color: var(--lake-surface-2);
+    stop-opacity: 0;
+  }
+
+  /* 倒影和波光共用同一轮廓，但用 clip-path 强制收在水面内。 */
+  .lake-content {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  /* 水面的冷暖反光：底色由 SVG 渐变提供，这里只叠光。 */
+  .lake-depth {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(62% 18% at 50% 0%, var(--glow-lamp) 0%, transparent 72%),
+      radial-gradient(80% 50% at 50% 96%, var(--glow-teal) 0%, transparent 70%);
+    opacity: 0.6;
+  }
+
+  /* 滤镜必须挂在整块湖面大小的倒影层上：侧卡倒影会延伸到活跃卡底部以上，
+     若直接挂在 flip 上，SVG 滤镜的默认区域会把高处的侧卡倒影裁掉。 */
+  .reflection-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: var(--lake-reflect-opacity);
+    filter: url(#harbor-water) blur(0.95px) var(--lake-reflect-filter);
+  }
+
+  /* 翻转后的整条卡片堆叠。top 由 JS 精确设到活跃卡底部；湖面的 SVG mask
+     负责把整块倒影裁成有机水岸，不再需要单独的矩形裁切容器。 */
+  .reflection-flip {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    transform: translateY(100%) scaleY(-1);
+    transform-origin: top center;
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+
+  .reflection-grid {
+    position: relative;
+    display: grid;
+    grid-template-areas: 'stack';
+    margin: 0 auto;
+  }
+
+  /* 用 color 混合只借水色的色相，不改倒影自身的明暗，因此侧卡不会糊成一片。 */
+  .lake-wash {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(180deg, var(--lake-wash-top) 0%, var(--lake-wash-bottom) 100%);
+    mix-blend-mode: color;
+    opacity: 0.64;
+  }
+
+  /* 越往下越浓的水色。倒影透过它逐渐沉进湖里，而不是到某条线突然消失。 */
+  .lake-veil {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      transparent 10%,
+      var(--lake-veil) 40%,
+      var(--lake-veil-strong) 100%
+    );
+  }
+
+  /* 最底层的水雾，保证湖面在文章区附近柔和地回到页面背景。 */
+  .lake-fade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    height: 46%;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      var(--lake-fade-mid) 52%,
+      var(--lake-fade-bottom) 100%
+    );
+  }
+
+  /* 月亮：水平位置由真实时钟决定（18:00 右侧升起，午夜居中，06:00 左侧落下）。 */
+  .lake-moon {
+    position: absolute;
+    z-index: 4;
+    width: 0;
+    height: 0;
+    opacity: var(--moon-opacity, 1);
+    transition:
+      left 2600ms cubic-bezier(0.33, 1, 0.68, 1),
+      top 2600ms cubic-bezier(0.33, 1, 0.68, 1),
+      opacity 2600ms ease;
+  }
+
+  /* 深色下用 screen 叠加，让月光落在倒影上而不是盖住倒影。 */
+  html.dark .lake-moon {
+    mix-blend-mode: screen;
+  }
+
+  html:not(.dark) .lake-moon {
+    opacity: calc(var(--moon-opacity, 1) * 0.85);
+  }
+
+  .lake-moon-halo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(var(--moon-size) * 4.2);
+    height: calc(var(--moon-size) * 4.2);
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, var(--lake-moon-halo) 0%, transparent 68%);
+    filter: blur(11px);
+    opacity: 0.55;
+    mix-blend-mode: screen;
+    animation: moon-halo-breathe 8s ease-in-out infinite alternate;
+  }
+
+  .lake-moon-disc {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--moon-size);
+    height: var(--moon-size);
+    transform: translate(-50%, -50%) scaleX(1.12) scaleY(0.94);
+    overflow: hidden;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.96) 0 10%, transparent 26%),
+      radial-gradient(circle at 32% 36%, var(--lake-moon) 0%, #ffedc8 55%, #f1ce93 100%);
+    filter: url(#harbor-moon) blur(1px);
+    /* 横向的水纹把月盘切开；被切掉的部分直接露出湖水，比压暗更像倒影。 */
+    -webkit-mask-image: repeating-linear-gradient(
+      180deg,
+      #000 0 4px,
+      rgba(0, 0, 0, 0.55) 4px 5px,
+      #000 5px 10px
+    );
+    mask-image: repeating-linear-gradient(
+      180deg,
+      #000 0 4px,
+      rgba(0, 0, 0, 0.55) 4px 5px,
+      #000 5px 10px
+    );
+    animation: moon-disc-ripple 6s linear infinite;
+  }
+
+  /* 月海：让月盘不是一块纯白的圆点 */
+  .lake-moon-disc::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 30% 42%, rgba(186, 154, 102, 0.22) 0 9%, transparent 11%),
+      radial-gradient(circle at 62% 34%, rgba(186, 154, 102, 0.17) 0 6%, transparent 8%),
+      radial-gradient(circle at 56% 66%, rgba(186, 154, 102, 0.2) 0 11%, transparent 13%),
+      radial-gradient(circle at 38% 72%, rgba(186, 154, 102, 0.14) 0 5%, transparent 7%);
+  }
+
+  html:not(.dark) .lake-moon-disc {
+    background:
+      radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.98) 0 10%, transparent 26%),
+      radial-gradient(circle at 32% 36%, #fffdf6 0%, #f6eedb 58%, #e2d6bd 100%);
+  }
+
+  html:not(.dark) .lake-moon-halo {
+    opacity: 0.42;
+  }
+
+  /* 从月盘向近岸铺开的碎月光。越靠下越宽，和真实的月光水路一致。 */
+  .lake-moon-trail {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--moon-size) * 0.5);
+    width: calc(var(--moon-size) * 3.2);
+    height: calc(var(--lake-h) * 0.32);
+    transform: translateX(-50%);
+    mix-blend-mode: screen;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.95) 0%,
+      rgba(0, 0, 0, 0.6) 62%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.95) 0%,
+      rgba(0, 0, 0, 0.6) 62%,
+      transparent 100%
+    );
+  }
+
+  /* 一条很淡的连续光柱，把碎光串成月光水路 */
+  .lake-moon-trail::before {
+    content: '';
+    position: absolute;
+    inset: 0 16%;
+    background: linear-gradient(180deg, var(--lake-moon-halo) 0%, transparent 88%);
+    opacity: 0.24;
+    filter: blur(7px);
+  }
+
+  .lake-moon-trail span {
+    position: absolute;
+    display: block;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--lake-moon) 26%,
+      #fffdf5 50%,
+      var(--lake-moon) 74%,
+      transparent 100%
+    );
+    filter: blur(0.3px);
+    opacity: 0;
+    transform: translateX(-50%) scaleX(0.4);
+    animation: moon-glint var(--glint-duration, 5s) ease-in-out infinite;
+    animation-delay: var(--glint-delay, 0s);
+  }
+
+  /* ---- 水面的自行流动：两层缓慢涌动的波光 + 一层被风揉碎的碎光 ---------- */
+  .lake-swell {
+    position: absolute;
+    z-index: 3;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    filter: blur(11px);
+    will-change: transform;
+    animation: lake-swell-far 24s ease-in-out infinite alternate;
+  }
+
+  .lake-swell--far {
+    inset: -22% -16%;
+    background:
+      radial-gradient(ellipse 30% 16% at 16% 34%, var(--lake-glint-soft) 0%, transparent 68%),
+      radial-gradient(ellipse 26% 12% at 62% 58%, var(--lake-glint-soft) 0%, transparent 66%),
+      radial-gradient(ellipse 22% 9% at 86% 28%, var(--lake-glint-soft) 0%, transparent 70%),
+      radial-gradient(ellipse 18% 8% at 40% 78%, var(--lake-glint) 0%, transparent 72%);
+    opacity: 0.24;
+  }
+
+  .lake-swell--near {
+    inset: -8% -22%;
+    background:
+      radial-gradient(ellipse 12% 4% at 10% 52%, var(--lake-glint) 0%, transparent 72%),
+      radial-gradient(ellipse 16% 4.5% at 34% 68%, var(--lake-glint) 0%, transparent 70%),
+      radial-gradient(ellipse 10% 3.5% at 55% 40%, var(--lake-glint-soft) 0%, transparent 74%),
+      radial-gradient(ellipse 14% 4% at 74% 76%, var(--lake-glint) 0%, transparent 72%),
+      radial-gradient(ellipse 9% 3% at 92% 46%, var(--lake-glint) 0%, transparent 74%);
+    opacity: 0.18;
+    filter: blur(5px);
+    animation: lake-swell-near 16s ease-in-out infinite alternate-reverse;
+  }
+
+  .lake-glints {
+    position: absolute;
+    inset: -12% -15%;
+    z-index: 5;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 22px 1.4px at 8% 32%, var(--lake-glint) 0 28%, transparent 80%),
+      radial-gradient(ellipse 11px 1.1px at 22% 71%, var(--lake-glint) 0 30%, transparent 82%),
+      radial-gradient(ellipse 30px 1.6px at 36% 24%, var(--lake-glint) 0 26%, transparent 80%),
+      radial-gradient(ellipse 14px 1.2px at 47% 47%, var(--lake-glint) 0 28%, transparent 82%),
+      radial-gradient(ellipse 24px 1.5px at 51% 88%, var(--lake-glint) 0 26%, transparent 80%),
+      radial-gradient(ellipse 9px 1px at 58% 58%, var(--lake-glint) 0 30%, transparent 82%),
+      radial-gradient(ellipse 18px 1.3px at 67% 37%, var(--lake-glint) 0 26%, transparent 80%),
+      radial-gradient(ellipse 26px 1.4px at 74% 13%, var(--lake-glint) 0 28%, transparent 80%),
+      radial-gradient(ellipse 12px 1.1px at 78% 76%, var(--lake-glint) 0 30%, transparent 82%),
+      radial-gradient(ellipse 20px 1.3px at 88% 61%, var(--lake-glint) 0 26%, transparent 80%),
+      radial-gradient(ellipse 8px 1px at 96% 29%, var(--lake-glint) 0 30%, transparent 82%),
+      radial-gradient(circle at 12% 84%, var(--lake-glint) 0 1px, transparent 1.9px),
+      radial-gradient(circle at 44% 18%, var(--lake-glint) 0 0.9px, transparent 1.8px),
+      radial-gradient(circle at 82% 88%, var(--lake-glint) 0 1px, transparent 1.9px);
+    background-size: 360px 188px;
+    background-repeat: repeat;
+    mix-blend-mode: screen;
+    opacity: 0.62;
+    filter: blur(0.25px);
+    will-change: transform, opacity;
+    animation:
+      lake-glints-drift 34s linear infinite,
+      lake-glints-twinkle 6.5s ease-in-out infinite alternate;
+  }
+
+  html:not(.dark) .lake-swell--far {
+    opacity: 0.16;
+  }
+
+  html:not(.dark) .lake-swell--near {
+    opacity: 0.12;
+  }
+
+  html:not(.dark) .lake-glints {
+    opacity: 0.45;
+  }
+
+  @media (max-width: 639px) {
+    .lake-zone {
+      --moon-size: clamp(24px, 7.2vw, 34px);
+    }
+
+    .lake-swell--far {
+      opacity: 0.18;
+    }
+
+    .lake-swell--near {
+      opacity: 0.14;
+    }
+
+    .lake-glints {
+      opacity: 0.55;
+    }
+  }
+
+  /* ---- 其他 -------------------------------------------------------------- */
+  .writing-vertical {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  .display-rule {
+    height: 1px;
+    width: 100%;
+    background: linear-gradient(90deg, var(--lamp), transparent);
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+@layer utilities {
+  .text-ink {
+    color: var(--ink);
+  }
+
+  .text-muted {
+    color: var(--muted);
+  }
+
+  .text-faint {
+    color: var(--faint);
+  }
+
+  .text-lamp {
+    color: var(--lamp);
+  }
+
+  .text-accent {
+    color: var(--accent);
+  }
+
+  .bg-page {
+    background-color: var(--bg-0);
+  }
+
+  .bg-panel {
+    background-color: var(--panel);
+  }
+
+  .border-line {
+    border-color: var(--line);
+  }
+
+  .border-line-strong {
+    border-color: var(--line-strong);
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+    transition: opacity 900ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+/* ============================================================================
+   环境背景：星尘 / 雨丝 / 极光 / 颗粒
+   全部是 fixed 的绘制层，不参与布局，也不拦截指针事件。
+   ========================================================================== */
+.ambient-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -30;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% -12%, var(--glow-teal) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 45% at 96% 34%, var(--glow-lamp) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 45% at 4% 92%, var(--glow-teal) 0%, transparent 72%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+  transition: background 600ms ease;
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #475569;
+.ambient-glow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+  animation: aurora-drift 22s ease-in-out infinite alternate;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+.ambient-glow--teal {
+  top: -18%;
+  left: 50%;
+  width: 78vw;
+  height: 52vh;
+  margin-left: -39vw;
+  background: radial-gradient(ellipse at center, rgba(45, 212, 191, 0.2) 0%, transparent 68%);
+}
+
+.ambient-glow--amber {
+  top: 42%;
+  right: -18%;
+  width: 44vw;
+  height: 48vh;
+  background: radial-gradient(ellipse at center, rgba(255, 169, 79, 0.12) 0%, transparent 70%);
+  animation-delay: -7s;
+}
+
+.ambient-glow--violet {
+  bottom: -24%;
+  left: -12%;
+  width: 48vw;
+  height: 52vh;
+  background: radial-gradient(ellipse at center, rgba(129, 140, 248, 0.1) 0%, transparent 70%);
+  animation-delay: -14s;
+}
+
+html:not(.dark) .ambient-glow {
+  opacity: 0.32;
+}
+
+.ambient-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 72px 72px;
+  -webkit-mask-image: radial-gradient(ellipse 72% 52% at 50% 8%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(ellipse 72% 52% at 50% 8%, #000 0%, transparent 78%);
+}
+
+.ambient-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 32%, transparent 34%, var(--vignette) 100%);
+}
+
+.ambient-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html.dark .ambient-grain {
+  opacity: 0.055;
+}
+
+.ambient-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================================
+   动效
+   ========================================================================== */
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes soft-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, 2%, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(-1%, 3%, 0) scale(1.02);
+  }
+}
+
+@keyframes lake-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes moon-halo-breathe {
+  from {
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+@keyframes moon-disc-ripple {
+  from {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+  to {
+    -webkit-mask-position: 0 10px;
+    mask-position: 0 10px;
+  }
+}
+
+@keyframes moon-glint {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(0.35);
+  }
+  30%,
+  62% {
+    opacity: var(--glint-peak, 0.4);
+    transform: translateX(-50%) scaleX(1);
+  }
+  82% {
+    opacity: 0;
+    transform: translateX(-50%) scaleX(0.6);
+  }
+}
+
+@keyframes lake-swell-far {
+  0% {
+    transform: translate3d(-6%, 1.5%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(1%, -2.5%, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(6%, 1%, 0) scale(1.02);
+  }
+}
+
+@keyframes lake-swell-near {
+  0% {
+    transform: translate3d(5%, 2%, 0) scale(1.02);
+  }
+  100% {
+    transform: translate3d(-5%, -2.5%, 0) scale(1);
+  }
+}
+
+@keyframes lake-glints-drift {
+  from {
+    transform: translate3d(-18px, 0, 0);
+  }
+  to {
+    transform: translate3d(18px, 0, 0);
+  }
+}
+
+@keyframes lake-glints-twinkle {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 0.68;
+  }
+}
+
+@keyframes scroll-line {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+    opacity: 0;
+  }
+  35% {
+    transform: scaleY(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleY(1);
+    transform-origin: bottom;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .ambient-glow,
+  .orbit-ring,
+  .status-dot::before,
+  .lake-canvas,
+  .lake-swell,
+  .lake-glints,
+  .lake-moon-halo,
+  .lake-moon-disc,
+  .lake-moon-trail span {
+    animation: none !important;
+  }
+
+  /* 静止时仍保留一条淡淡的月光水路，而不是让湖面空掉 */
+  .lake-moon-trail span {
+    opacity: 0.35;
+    transform: translateX(-50%) scaleX(0.8);
+  }
+
+  .lake-moon {
+    transition-duration: 1ms;
+  }
+
+  .card-lift,
+  .btn-lamp,
+  .btn-ghost,
+  .link-arrow::after {
+    transition-duration: 1ms;
+  }
 }

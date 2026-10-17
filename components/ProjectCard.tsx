@@ -10,70 +10,72 @@ interface ProjectCardProps {
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
   const { projects: copy } = useCopy();
+
   return (
-    <div className="group relative flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/20 dark:hover:shadow-blue-900/30 hover:border-blue-500/30 dark:hover:border-blue-400/30 h-full overflow-hidden">
-
-      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-      <div className="relative z-10 aspect-[16/10] w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 mb-5 border border-slate-100 dark:border-slate-800">
-        <img 
-          src={project.imageUrl} 
-          alt={project.title} 
-          loading="lazy" 
-          decoding="async" 
-          className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out" 
+    <article className="group card-surface card-lift flex h-full flex-col p-4 md:p-5">
+      <div className="relative z-10 aspect-[16/10] w-full overflow-hidden rounded-[18px] border border-[var(--line)] bg-[var(--bg-1)]">
+        <img
+          src={project.imageUrl}
+          alt={project.title}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-[1.035]"
         />
-        <div className="absolute inset-0 ring-1 ring-inset ring-black/5 dark:ring-white/5 rounded-xl pointer-events-none" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#04080f]/55 via-transparent to-transparent opacity-70" />
+        <div className="absolute left-3 top-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/35 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.22em] text-white/80 backdrop-blur-md">
+            <span className="h-1 w-1 rounded-full bg-[var(--lamp)] shadow-[0_0_8px_var(--lamp)]" />
+            Project
+          </span>
+        </div>
+        <div className="pointer-events-none absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/10" />
       </div>
 
-      <div className="relative z-10 flex-1 px-2 flex flex-col">
-        <div className="flex items-start justify-between mb-3">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+      <div className="relative z-10 flex flex-1 flex-col px-2 pb-1 pt-6 md:px-3">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <h3 className="font-display text-[1.65rem] font-semibold leading-tight tracking-wide text-ink transition-colors duration-300 group-hover:text-lamp">
             {project.title}
           </h3>
+          <ArrowUpRight
+            size={18}
+            className="mt-1.5 shrink-0 text-faint transition-all duration-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-lamp"
+          />
         </div>
 
-        <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed mb-6 line-clamp-3">
-          {project.description}
-        </p>
+        <p className="mb-6 line-clamp-3 text-sm leading-relaxed text-muted">{project.description}</p>
 
-        <div className="flex flex-wrap gap-2 mb-6 mt-auto">
+        <div className="mb-6 mt-auto flex flex-wrap gap-2">
           {project.tags.map(tag => (
-            <span key={tag} className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold uppercase tracking-wider border border-slate-200 dark:border-slate-700 group-hover:border-slate-300 dark:group-hover:border-slate-600 transition-colors">
+            <span key={tag} className="tag-chip">
               {tag}
             </span>
           ))}
         </div>
 
         <div
-          className={`grid gap-3 mt-auto pt-5 border-t border-slate-50 dark:border-slate-800 ${
+          className={`grid gap-3 border-t border-[var(--line)] pt-5 ${
             project.repo ? 'grid-cols-[1fr_auto]' : 'grid-cols-1'
           }`}
         >
-          <a 
-            href={project.link} 
-            target="_blank" 
-            rel="noreferrer" 
-            className="flex items-center justify-center gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-blue-600 dark:hover:bg-white dark:hover:text-blue-600 active:scale-95 shadow-lg shadow-slate-900/10 dark:shadow-black/20 hover:shadow-blue-600/20"
-          >
-            {copy.action} <ArrowUpRight size={16} />
+          <a href={project.link} target="_blank" rel="noreferrer" className="btn-lamp min-h-[46px]">
+            {copy.action} <ArrowUpRight size={15} />
           </a>
-          
+
           {/* 若提供仓库地址则展示开源平台入口（根据链接自适应图标） */}
           {project.repo && (
-            <a 
-              href={project.repo} 
-              target="_blank" 
-              rel="noreferrer" 
-              className="flex items-center justify-center w-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:border-slate-900 dark:hover:border-slate-500 hover:text-slate-900 dark:hover:text-white transition-all hover:shadow-md"
+            <a
+              href={project.repo}
+              target="_blank"
+              rel="noreferrer"
+              className="flex w-12 items-center justify-center rounded-full border border-[var(--line-strong)] text-muted transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--lamp)] hover:text-lamp"
               aria-label={`View Source on ${getRepoPlatformLabel(project.repo)}`}
             >
-              <RepoPlatformIcon url={project.repo} size={20} />
+              <RepoPlatformIcon url={project.repo} size={19} />
             </a>
           )}
         </div>
       </div>
-    </div>
+    </article>
   );
 };
 

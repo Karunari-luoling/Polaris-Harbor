@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Website } from '../types';
 import WebsiteCard from './WebsiteCard';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Website3DCarouselProps {
   websites: Website[];
@@ -14,11 +13,44 @@ interface Website3DCarouselProps {
 // peek = 最近一张侧卡的位移（占自身宽度的百分比），stack = 再往外每级的位移增量，
 // side = 侧卡缩放，falloff = 每往外一级的额外缩小量，depthY = 第三级额外的纵向压缩，
 // visible = 两侧各展示几张，imageRatio = 卡内截图宽高比（宽屏压矮以省出纵向空间），
-// reflect = 是否要倒影，gap = 卡片带到圆点带的间距。
+// reflect = 湖面可见高度占卡高的比例，reflectMax = 湖面的像素上限。
 const TIERS = {
-  phone: { peek: 20, stack: 0, side: 0.75, falloff: 0.06, depthY: 1, rot: 0, visible: 1, imageRatio: '16/10', reflect: false, gap: 24 },
-  tablet: { peek: 24, stack: 6, side: 0.72, falloff: 0.06, depthY: 1, rot: -6, visible: 1, imageRatio: '16/10', reflect: false, gap: 30 },
-  desktop: { peek: 42, stack: 24, side: 0.70, falloff: 0.04, depthY: 0.82, rot: -10, visible: 2, imageRatio: '16/7', reflect: true, gap: 96 },
+  phone: {
+    peek: 20,
+    stack: 0,
+    side: 0.75,
+    falloff: 0.06,
+    depthY: 1,
+    rot: 0,
+    visible: 1,
+    imageRatio: '16/10',
+    reflect: 0.32,
+    reflectMax: 150,
+  },
+  tablet: {
+    peek: 24,
+    stack: 6,
+    side: 0.72,
+    falloff: 0.06,
+    depthY: 1,
+    rot: -6,
+    visible: 1,
+    imageRatio: '16/10',
+    reflect: 0.4,
+    reflectMax: 215,
+  },
+  desktop: {
+    peek: 42,
+    stack: 24,
+    side: 0.7,
+    falloff: 0.04,
+    depthY: 0.82,
+    rot: -10,
+    visible: 2,
+    imageRatio: '16/7',
+    reflect: 0.48,
+    reflectMax: 300,
+  },
 } as const;
 
 type Tier = keyof typeof TIERS;
@@ -27,24 +59,128 @@ type TierSpec = (typeof TIERS)[Tier];
 // 与 CSS 的 sm / lg 断点共用同一组阈值，避免 JS 档位和样式档位错配。
 const tierFor = (width: number): Tier => (width < 640 ? 'phone' : width < 1024 ? 'tablet' : 'desktop');
 
-const EASE = 'cubic-bezier(0.25, 1, 0.5, 1)';
-// 倒影用 -webkit-box-reflect：只绘制、不占布局，所以卡片高度不受影响，
-// 但需要靠 gap 预留出可见段的落点，否则会压在圆点上。15% 约为卡高的 1/7。
-// Firefox 不支持该属性，届时只是没有倒影，不影响布局。
-const REFLECT = 'below 8px linear-gradient(to bottom, rgba(0,0,0,0.42), transparent 15%)';
+// 某层侧卡的纵向缩放。transform-origin 是卡片中心，所以侧卡缩得越小，
+// 它的底边离活跃卡底边越远。
+const sideScaleY = (t: TierSpec, abs: number) =>
+  (t.side - (abs - 1) * t.falloff) * (abs >= 2 ? t.depthY : 1);
 
-// 宽屏会同时露出两级侧卡，灰度必须分层，否则二三层的边缘糊成一块；
-// 手机/平板只有一级侧卡，沿用原来的单一灰度，观感与改动前一致。
-const OVERLAY = {
-  flat: 'bg-slate-900/10 dark:bg-black/40',
-  near: 'bg-slate-900/5 dark:bg-black/20',
-  far: 'bg-slate-900/15 dark:bg-black/55',
+// 湖面是一条独立的、超出内容栏宽度的大水面。上边缘是一段近似圆形的大弧：
+// 中心最高、向两侧缓缓落下；下边缘和底部渐隐保持原样。整块水面在卡片后方，
+// 并向文章区继续延伸。
+const LAKE_EXTRA_DEPTH = {
+  phone: 380,
+  tablet: 460,
+  desktop: 560,
+} as const;
+
+const buildLakeShape = () => {
+  const start: [number, number] = [0.04, 0.1];
+  // [c1x, c1y, c2x, c2y, x, y]
+  const segments: number[][] = [
+    // 圆形上边缘：两段大弧，中心高、两端低
+    [0.14, 0.035, 0.28, 0.012, 0.5, 0.012],
+    [0.72, 0.012, 0.86, 0.035, 0.96, 0.1],
+    // 以下几段是原湖岸/湖底轮廓，保持不动
+    [0.978, 0.26, 0.98, 0.5, 0.972, 0.7],
+    [0.964, 0.85, 0.938, 0.92, 0.888, 0.96],
+    [0.78, 1, 0.63, 1, 0.5, 1],
+    [0.37, 1, 0.22, 1, 0.112, 0.96],
+    [0.062, 0.92, 0.036, 0.85, 0.028, 0.7],
+    [0.02, 0.5, 0.022, 0.26, 0.04, 0.1],
+  ];
+
+  const path =
+    `M ${start[0]} ${start[1]} ` +
+    segments.map(s => `C ${s[0]} ${s[1]} ${s[2]} ${s[3]} ${s[4]} ${s[5]}`).join(' ') +
+    ' Z';
+
+  // clip-path: polygon 的兼容性比 objectBoundingBox clipPath 更稳；
+  // 用同一组贝塞尔曲线采样成足够密的折线，视觉上仍是圆弧。
+  let px = start[0];
+  let py = start[1];
+  const samples: string[] = [`${(px * 100).toFixed(3)}% ${(py * 100).toFixed(3)}%`];
+  for (const s of segments) {
+    const [c1x, c1y, c2x, c2y, ex, ey] = s;
+    for (let i = 1; i <= 8; i++) {
+      const t = i / 8;
+      const u = 1 - t;
+      const x = u * u * u * px + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * ex;
+      const y = u * u * u * py + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * ey;
+      samples.push(`${(x * 100).toFixed(3)}% ${(y * 100).toFixed(3)}%`);
+    }
+    px = ex;
+    py = ey;
+  }
+
+  return { path, clip: `polygon(${samples.join(', ')})` };
 };
-const AUTOPLAY_MS = 5000;
+
+const LAKE_SHAPE = buildLakeShape();
+
+// ---------------------------------------------------------------------------
+// 月影
+// ---------------------------------------------------------------------------
+// 月亮的倒影跟着真实时钟走：18:00 从湖面右侧升起，午夜移到湖心（最高、最亮），
+// 06:00 沉到左侧；白天保留一枚淡月，从左侧缓缓移回右侧。这样任何时段打开页面
+// 都能看到月亮，且它的位置永远和当前时间对应，而不是一段无关的循环动画。
+interface MoonState {
+  x: number;
+  y: number;
+  opacity: number;
+}
+
+const DUSK_MINUTES = 18 * 60;
+const DAWN_MINUTES = 6 * 60;
+const NIGHT_MINUTES = 24 * 60 - DUSK_MINUTES + DAWN_MINUTES;
+
+const computeMoon = (now: Date): MoonState => {
+  const minutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const isNight = minutes >= DUSK_MINUTES || minutes < DAWN_MINUTES;
+
+  // 0 = 刚刚升起，1 = 即将落下
+  const progress = isNight
+    ? (minutes >= DUSK_MINUTES ? minutes - DUSK_MINUTES : minutes + (24 * 60 - DUSK_MINUTES)) /
+      NIGHT_MINUTES
+    : (minutes - DAWN_MINUTES) / (DUSK_MINUTES - DAWN_MINUTES);
+
+  // 高度角：两端贴水天线，中间最高。月影越靠近日间位置越淡。
+  const altitude = Math.sin(Math.PI * progress);
+  const x = isNight ? 92 - 84 * progress : 8 + 84 * progress;
+  const y = isNight ? 50 + 9 * altitude : 42 + 6 * altitude;
+  const opacity = isNight ? 0.5 + 0.3 * altitude : 0.14 + 0.1 * altitude;
+
+  return { x, y, opacity };
+};
+
+// 月光在湖面上的碎屑：固定的一串横向光斑，越靠近画面底部越宽，
+// 用各自的延迟闪烁，形成一条从月亮一直铺到近岸的月影。
+const MOON_GLINTS = Array.from({ length: 15 }, (_, i) => {
+  const t = i / 14;
+  const wobble = Math.sin(i * 2.4) * 0.55 + Math.sin(i * 0.9) * 0.45;
+  return {
+    top: `${4 + t * 92}%`,
+    left: `${50 + wobble * (7 + t * 15)}%`,
+    width: `${16 + t * 54 + (i % 3) * 5}%`,
+    delay: `${((i * 1.7) % 8).toFixed(2)}s`,
+    duration: `${(4.2 + ((i * 5) % 9) * 0.53).toFixed(2)}s`,
+    peak: (0.3 + (i % 4) * 0.11).toFixed(2),
+  };
+});
+
+const EASE = 'cubic-bezier(0.25, 1, 0.5, 1)';
+const AUTOPLAY_MS = 5600;
 const SWIPE_MIN_PX = 40;
 const MIN_CARD_W = 240;
 const MAX_CARD_W = 600;
 const FIT_SAFETY = 0.98;
+
+// 宽屏会同时露出两级侧卡，灰度必须分层，否则二三层的边缘糊成一块；
+// 手机/平板只有一级侧卡，沿用原来的单一灰度，观感与改动前一致。
+const OVERLAY = {
+  flat: 'bg-[#04080f]/40 dark:bg-black/40',
+  near: 'bg-[#04080f]/15 dark:bg-black/25',
+  far: 'bg-[#04080f]/35 dark:bg-black/55',
+};
 
 // transform 里 translateX 的百分比按元素自身宽度计算、且不随 scale 缩小，
 // 所以最外侧那张卡的边缘 = cardW * (位移比例 + 缩放后的一半宽)。
@@ -70,7 +206,13 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
   const [tier, setTier] = useState<Tier>(() => tierFor(window.innerWidth));
   const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== 'hidden');
   const [availWidth, setAvailWidth] = useState(0);
+  const [stackHeight, setStackHeight] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  const [moon, setMoon] = useState<MoonState>(() => computeMoon(new Date()));
   const rootRef = useRef<HTMLDivElement>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
   const swipeStartX = useRef<number | null>(null);
   const swipedRef = useRef(false);
   const hoverable = useRef(window.matchMedia('(hover: hover)').matches);
@@ -80,6 +222,13 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
     const queries = [window.matchMedia('(min-width: 640px)'), window.matchMedia('(min-width: 1024px)')];
     queries.forEach(q => q.addEventListener('change', sync));
     return () => queries.forEach(q => q.removeEventListener('change', sync));
+  }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduceMotion(query.matches);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
   }, []);
 
   // 容器宽度是唯一可信的边界来源：vw 会算上父级内边距和 max-w-6xl 的收缩。
@@ -95,15 +244,49 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
     return () => observer.disconnect();
   }, [hasCards]);
 
+  // 倒影的高度必须跟着活跃卡的真实高度走，不能写死。
+  // 观察的是整块堆叠区（所有卡等高），字体或图片变化时同步更新。
+  useLayoutEffect(() => {
+    if (!hasCards) return;
+    const el = stackRef.current;
+    if (!el) return;
+    const measure = () => {
+      const next = el.getBoundingClientRect().height;
+      setStackHeight(prev => (Math.abs(prev - next) < 0.5 ? prev : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasCards, tier]);
+
   useEffect(() => {
     const onVisibilityChange = () => setPageVisible(document.visibilityState !== 'hidden');
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
-  const goTo = useCallback((index: number) => {
-    setCurrentIndex(prev => (total === 0 ? prev : ((index % total) + total) % total));
-  }, [total]);
+  // 一分钟同步一次足够：月亮在 12 小时里横穿湖面，每分钟只移动几个像素，
+  // 位置变化交给 CSS 的 left/top transition 去抹平。
+  useEffect(() => {
+    const sync = () => setMoon(computeMoon(new Date()));
+    const timer = window.setInterval(sync, 60_000);
+    const onVisibility = () => {
+      if (!document.hidden) sync();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
+  const goTo = useCallback(
+    (index: number) => {
+      setCurrentIndex(prev => (total === 0 ? prev : ((index % total) + total) % total));
+    },
+    [total]
+  );
 
   const goNext = useCallback(() => {
     setCurrentIndex(prev => (total === 0 ? prev : (prev + 1) % total));
@@ -114,14 +297,25 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
   }, [total]);
 
   useEffect(() => {
-    if (isPaused || !pageVisible || total < 2) return;
+    if (isPaused || !pageVisible || total < 2 || reduceMotion) return;
     const timer = setInterval(goNext, AUTOPLAY_MS);
     return () => clearInterval(timer);
-  }, [isPaused, pageVisible, total, goNext]);
+  }, [isPaused, pageVisible, total, goNext, reduceMotion]);
 
   // 数据条数变少时索引可能越界，读一个安全值即可，不必再加 effect 回滚
   const active = currentIndex < total ? currentIndex : 0;
   const layout = computeLayout(TIERS[tier], availWidth);
+  const t = TIERS[tier];
+  const reflectHeight = Math.round(Math.min(t.reflectMax, Math.max(0, stackHeight * t.reflect)));
+
+  // 湖面要升到第三层侧卡的底边，才能让几层卡片都像站在同一片水面上。
+  const visibleSpan = Math.min(t.visible, Math.floor(total / 2));
+  const outerScale = visibleSpan > 0 ? sideScaleY(t, visibleSpan) : 1;
+  const outerGap = visibleSpan > 0 ? (stackHeight * (1 - outerScale)) / 2 : 0;
+  // 湖面整体往上提：上边缘抬到卡片中下部，下边缘（R + extra）位置不变。
+  const lakeRise = Math.max(14, Math.round(outerGap + stackHeight * 0.24 + 16));
+  const lakeCanvasHeight = Math.max(1, lakeRise + reflectHeight + LAKE_EXTRA_DEPTH[tier]);
+  const moonTop = lakeRise + (moon.y / 100) * reflectHeight;
 
   // 相对当前卡的堆叠位置；位移用百分比，天然跟随卡片实际宽度缩放
   const offsetOf = (index: number) => {
@@ -132,8 +326,6 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
   };
 
   const cardStyle = (offset: number): React.CSSProperties => {
-    const t = TIERS[tier];
-
     const shared: React.CSSProperties = {
       transition: `transform 600ms ${EASE}, opacity 600ms ${EASE}, filter 600ms ${EASE}`,
     };
@@ -145,7 +337,14 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
     }
 
     if (abs === 0) {
-      return { ...shared, opacity: 1, transform: 'translateX(0) scale(1)', zIndex: 30, pointerEvents: 'auto', filter: 'none' };
+      return {
+        ...shared,
+        opacity: 1,
+        transform: 'translateX(0) scale(1)',
+        zIndex: 30,
+        pointerEvents: 'auto',
+        filter: 'none',
+      };
     }
 
     const sign = Math.sign(offset);
@@ -155,13 +354,94 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
 
     return {
       ...shared,
-      opacity: Math.max(0.4, 0.85 - (abs - 1) * 0.2),
+      // 主舞台的侧卡统一由外层承托不透明底衬（见 renderCards），
+      // 层级淡出改由内层承担。这样轮播转动时湖水也不会从卡片背后透出来。
+      opacity: 1,
       transform: `translateX(${x}%) rotateY(${sign * abs * t.rot}deg) scale(${sx}, ${sy})`,
       filter: `blur(${abs}px) brightness(${1 - abs * 0.05})`,
       zIndex: 20 - abs,
       pointerEvents: 'auto',
     };
   };
+
+  // 侧卡绕中心缩放，卡片底边比活跃卡高 gap。倒影要围着各自卡片的底边翻转，
+  // 而不是统一从活跃卡底部开始；在翻转坐标系里把卡片下移 2*gap，正好把倒影
+  // 顶边抬到它自己的底边上。于是三层卡片的倒影分别落在不同的水深处。
+  const reflectionCardStyle = (offset: number): React.CSSProperties => {
+    const style = cardStyle(offset);
+    const abs = Math.abs(offset);
+    if (abs === 0 || abs > t.visible) return style;
+
+    const sy = sideScaleY(t, abs);
+    const gap = (stackHeight * (1 - sy)) / 2;
+    return {
+      ...style,
+      // 倒影仍按原来的透明度沉在湖里；只有主舞台的最外层改用不透明底衬。
+      opacity: Math.max(0.4, 0.85 - (abs - 1) * 0.2),
+      transform: `translateY(${(gap * 2).toFixed(2)}px) ${style.transform ?? ''}`,
+    };
+  };
+
+  // 同一套卡片同时用于主舞台和湖面：倒影不是只复制当前卡，而是把整条
+  // 卡片堆叠（含两侧的 3D 侧卡、灰罩和位移）完整镜像一遍。因此轮播转动时，
+  // 湖里的每一张倒影都会跟着同一组 transform 一起移动。
+  const renderCards = (decorative: boolean) =>
+    websites.map((site, index) => {
+      const offset = offsetOf(index);
+      const abs = Math.abs(offset);
+      const isActive = abs === 0;
+      // 所有侧卡都给整张卡加一层不透明底衬：湖水在卡片下方，但不会再从
+      // 半透明的卡片里透出来。层级淡出改由内层承担，观感不变；
+      // 底衬在第二层和第三层之间始终存在，轮播转动时也不会闪出湖水。
+      const isSide = !decorative && abs >= 1;
+      const depthOpacity = abs >= 2 ? 0.65 : abs === 1 ? 0.85 : 1;
+
+      return (
+        <div
+          key={site.id}
+          className={`h-full w-full [grid-area:stack] ${isSide ? 'rounded-[22px] bg-[var(--bg-0)]' : ''}`}
+          style={decorative ? reflectionCardStyle(offset) : cardStyle(offset)}
+          onClick={
+            decorative
+              ? undefined
+              : () => {
+                  if (swipedRef.current) return;
+                  if (!isActive) goTo(index);
+                }
+          }
+          aria-hidden={decorative || !isActive}
+          aria-roledescription={decorative ? undefined : '幻灯片'}
+          aria-label={decorative ? undefined : `第 ${index + 1} 张，共 ${total} 张`}
+        >
+          <div
+            className="h-full w-full"
+            style={{ opacity: decorative ? 1 : depthOpacity, transition: `opacity 600ms ${EASE}` }}
+          >
+            <div
+              className={`relative h-full w-full rounded-[22px] transition-shadow duration-500 ${
+                isActive
+                  ? 'cursor-pointer shadow-[0_44px_100px_-42px_rgba(0,0,0,0.85)]'
+                  : 'cursor-pointer shadow-[0_30px_70px_-46px_rgba(0,0,0,0.8)]'
+              }`}
+            >
+              {!isActive && (
+                <div
+                  className={`absolute inset-0 z-50 rounded-[22px] transition-colors duration-500 ${
+                    t.visible < 2 ? OVERLAY.flat : abs === 1 ? OVERLAY.near : OVERLAY.far
+                  }`}
+                />
+              )}
+              <WebsiteCard
+                website={site}
+                disableHoverEffects
+                forceActionIcon
+                imageAspectRatio={t.imageRatio}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    });
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse') return;
@@ -179,106 +459,219 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
     else goPrev();
   };
 
-  if (total === 0) return null;
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      goPrev();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      goNext();
+    }
+  };
 
-  const t = TIERS[tier];
-  const showControls = total > 1;
+  if (total === 0) return null;
 
   return (
     <div
       ref={rootRef}
-      className="relative mx-auto grid w-full grid-rows-[auto_auto] justify-items-center overflow-x-clip pb-6 md:pb-10 group/carousel"
+      className="group/carousel relative isolate mx-auto flex w-full flex-col items-center"
       role="group"
       aria-roledescription="轮播"
       aria-label="网站展示"
+      tabIndex={0}
       style={{ touchAction: 'pan-y' }}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => { swipeStartX.current = null; }}
+      onPointerCancel={() => {
+        swipeStartX.current = null;
+      }}
+      onKeyDown={onKeyDown}
       onMouseEnter={hoverable.current ? () => setIsPaused(true) : undefined}
       onMouseLeave={hoverable.current ? () => setIsPaused(false) : undefined}
     >
-      <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-2/3 w-3/4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[70px] dark:bg-blue-500/5" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-2/3 w-3/4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--glow-teal)] blur-[80px]" />
 
-      {/* 所有卡片占同一格，格子高度取最高的一张，因此不需要写死容器高度 */}
+      {/* 所有卡片占同一格，格子高度取最高的一张，因此不需要写死容器高度。
+          z-10 让卡片浮在湖面之上：湖面是背景平面，卡片才像站在水里。 */}
       <div
-        className="relative col-start-1 row-start-1 grid [grid-template-areas:'stack']"
+        ref={stackRef}
+        className="relative z-40 grid [grid-template-areas:'stack']"
         style={{ width: layout.width }}
       >
-        {websites.map((site, index) => {
-          const offset = offsetOf(index);
-          const abs = Math.abs(offset);
-          const isActive = abs === 0;
-          return (
-            <div
-              key={site.id}
-              className="h-full w-full [grid-area:stack]"
-              style={cardStyle(offset)}
-              onClick={() => {
-                if (swipedRef.current) return;
-                if (!isActive) goTo(index);
-              }}
-              aria-hidden={!isActive}
-              aria-roledescription="幻灯片"
-              aria-label={`第 ${index + 1} 张，共 ${total} 张`}
-            >
-              <div
-                className={`relative h-full w-full rounded-2xl shadow-2xl transition-shadow duration-500 ${isActive ? 'cursor-pointer shadow-blue-900/30' : 'cursor-pointer shadow-black/20'}`}
-                style={isActive && t.reflect ? { WebkitBoxReflect: REFLECT } : undefined}
-              >
-                {!isActive && (
-                  <div className={`absolute inset-0 z-50 rounded-2xl transition-colors duration-500 ${t.visible < 2 ? OVERLAY.flat : abs === 1 ? OVERLAY.near : OVERLAY.far}`} />
-                )}
-                <WebsiteCard website={site} disableHoverEffects forceActionIcon imageAspectRatio={t.imageRatio} />
-              </div>
-            </div>
-          );
-        })}
-
-        {showControls && tier !== 'phone' && (
-          <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between opacity-0 transition-opacity duration-500 group-hover/carousel:opacity-100">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); goPrev(); }}
-              className="pointer-events-auto -ml-2 rounded-full border border-slate-100 bg-white p-3 text-slate-800 shadow-lg transition-all duration-300 hover:-translate-x-1 hover:text-blue-600 hover:shadow-xl active:scale-90 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-blue-400 md:p-4"
-              aria-label={`上一个：${websites[(active - 1 + total) % total]?.title ?? ''}`}
-            >
-              <ChevronLeft size={24} className="h-7 w-7" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); goNext(); }}
-              className="pointer-events-auto -mr-2 rounded-full border border-slate-100 bg-white p-3 text-slate-800 shadow-lg transition-all duration-300 hover:translate-x-1 hover:text-blue-600 hover:shadow-xl active:scale-90 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-blue-400 md:p-4"
-              aria-label={`下一个：${websites[(active + 1) % total]?.title ?? ''}`}
-            >
-              <ChevronRight size={24} className="h-7 w-7" />
-            </button>
-          </div>
-        )}
+        {renderCards(false)}
       </div>
 
-      {/* 圆点独立成第二行，与卡片之间由间距保证，结构上不可能被卡片遮住 */}
-      {showControls && (
+      {/*
+        湖面是一片独立的、比内容栏更宽的水面，铺在卡片后面并向文章区继续延伸。
+        水面用 SVG path 填色 + 高斯模糊得到真正的软边；同一份 path 通过
+        objectBoundingBox 的 clipPath 裁切倒影和波光，硬裁边会被外侧的模糊水色
+        包住。顶部两侧抬高到第三层卡底边，中间凹进活跃卡底部。
+
+        倒影把整条卡片堆叠镜像一遍，每张卡围绕自己的底边翻转：活跃卡倒影最低，
+        第三层卡倒影最高，像几排卡片站在同一片湖水的不同深度里。
+      */}
+      {reflectHeight > 0 && (
         <div
-          className="col-start-1 row-start-2 flex max-w-full flex-wrap items-center justify-center gap-2 md:gap-3"
-          style={{ marginTop: t.gap }}
+          className="lake-zone"
+          style={
+            {
+              height: reflectHeight,
+              '--lake-h': `${reflectHeight}px`,
+              '--lake-rise': `${lakeRise}px`,
+            } as React.CSSProperties
+          }
+          aria-hidden="true"
+          inert
         >
-          {websites.map((site, idx) => (
-            <button
-              key={site.id}
-              type="button"
-              onClick={() => goTo(idx)}
-              className={`h-1.5 rounded-full transition-all duration-500 ${
-                idx === active
-                  ? 'w-8 bg-blue-600 shadow-lg shadow-blue-500/30 md:w-12'
-                  : 'w-1.5 bg-slate-300 hover:bg-slate-400 dark:bg-slate-600 dark:hover:bg-slate-500'
-              }`}
-              aria-label={`切换到 ${site.title}`}
-              aria-current={idx === active ? 'true' : undefined}
-            />
-          ))}
+          <div className="lake-canvas" style={{ top: -lakeRise, height: lakeCanvasHeight }}>
+            <svg
+              className="lake-water-svg"
+              viewBox="0 0 1 1"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <defs>
+                <linearGradient id="lake-water-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" className="lake-stop-top" />
+                  <stop offset="0.018" className="lake-stop-top-strong" />
+                  <stop offset="0.16" className="lake-stop-mid" />
+                  <stop offset="0.6" className="lake-stop-mid" />
+                  <stop offset="0.84" className="lake-stop-deep" />
+                  <stop offset="1" className="lake-stop-end" />
+                </linearGradient>
+                <filter id="lake-water-soft" x="-8%" y="-8%" width="116%" height="116%">
+                  <feGaussianBlur stdDeviation="0.018" />
+                </filter>
+              </defs>
+              <path
+                d={LAKE_SHAPE.path}
+                fill="url(#lake-water-fill)"
+                filter="url(#lake-water-soft)"
+              />
+            </svg>
+
+            <div
+              className="lake-content"
+              style={
+                {
+                  clipPath: LAKE_SHAPE.clip,
+                  WebkitClipPath: LAKE_SHAPE.clip,
+                } as React.CSSProperties
+              }
+            >
+              <div className="lake-depth" />
+
+              <div className="reflection-layer">
+                <div className="reflection-flip" style={{ top: lakeRise, height: stackHeight }}>
+                  <div
+                    className="reflection-grid"
+                    style={{ width: layout.width, height: stackHeight }}
+                  >
+                    {renderCards(true)}
+                  </div>
+                </div>
+              </div>
+
+              {/* 水色把镜面般的倒影染成湖水，避免倒影像一块干净的玻璃贴纸 */}
+              <div className="lake-wash" />
+              {/* 越往下越浓的水色，把倒影和湖底一起压暗、融进页面 */}
+              <div className="lake-veil" />
+
+              <div className="lake-swell lake-swell--far" />
+              <div className="lake-swell lake-swell--near" />
+
+              <div
+                className="lake-moon"
+                style={
+                  {
+                    left: `${moon.x}%`,
+                    top: `${moonTop}px`,
+                    '--moon-opacity': moon.opacity,
+                  } as React.CSSProperties
+                }
+              >
+                <span className="lake-moon-halo" />
+                <span className="lake-moon-disc" />
+                <span className="lake-moon-trail">
+                  {MOON_GLINTS.map((glint, idx) => (
+                    <span
+                      key={idx}
+                      style={
+                        {
+                          top: glint.top,
+                          left: glint.left,
+                          width: glint.width,
+                          '--glint-delay': glint.delay,
+                          '--glint-duration': glint.duration,
+                          '--glint-peak': glint.peak,
+                        } as React.CSSProperties
+                      }
+                    />
+                  ))}
+                </span>
+              </div>
+
+              <div className="lake-glints" />
+              <div className="lake-fade" />
+            </div>
+          </div>
         </div>
       )}
+
+      {/* 水波扰动滤镜：频率在纵横方向拉开，条纹才会像被雨点打皱的水面 */}
+      <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute h-0 w-0">
+        <defs>
+          <filter
+            id="harbor-water"
+            x="-15%"
+            y="-15%"
+            width="130%"
+            height="130%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.005 0.06"
+              numOctaves="2"
+              seed="11"
+              result="noise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale="18"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+
+          {/* 月影的扰动要细得多，否则月盘会被撕成碎片 */}
+          <filter
+            id="harbor-moon"
+            x="-30%"
+            y="-30%"
+            width="160%"
+            height="160%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.012 0.09"
+              numOctaves="2"
+              seed="7"
+              result="moon-noise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="moon-noise"
+              scale="5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </defs>
+      </svg>
     </div>
   );
 };
