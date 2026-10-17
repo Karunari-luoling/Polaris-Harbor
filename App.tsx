@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { Project, Website, Article, AppConfig } from './types';
 import { fetchArticles } from './services/rssService';
@@ -261,8 +261,14 @@ const App: React.FC = () => {
 
   const location = useLocation();
   const { setThemeConfig } = useTheme();
+  const initialized = useRef(false);
 
   useEffect(() => {
+    // StrictMode double-invokes this effect in dev; without the guard every source
+    // (config.yml, both data files, the RSS feed) is requested twice per load.
+    if (initialized.current) return;
+    initialized.current = true;
+
     // 首次挂载时：加载配置、拉取外部数据源、应用 SEO 和主题，并动态注入站点资源
     const initData = async () => {
       try {
@@ -339,9 +345,10 @@ const App: React.FC = () => {
   }
 
   // 首页仅截取配置数量，避免一次性渲染过多卡片
-  const homeProjects = projects.slice(0, config.display.projectCount);
-  const homeWebsites = websites.slice(0, config.display.websiteCount);
-  const homeArticles = articles.slice(0, config.display.articleCount);
+  const display = config.display;
+  const homeProjects = projects.slice(0, display?.projectCount ?? 3);
+  const homeWebsites = websites.slice(0, display?.websiteCount ?? 6);
+  const homeArticles = articles.slice(0, display?.articleCount ?? 3);
 
   const noiseBg = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E")`;
 

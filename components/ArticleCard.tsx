@@ -74,6 +74,8 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
             <img 
               src={article.thumbnail} 
               alt="" 
+              loading="lazy" 
+              decoding="async" 
               className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out" 
             />
           </div>

@@ -26,6 +26,9 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
 
   // 使用 useCallback 避免定时器重复创建
   const nextSlide = useCallback(() => {
+    // The auto-advance timer starts while websites is still empty, and `% 0` would
+    // poison currentIndex with NaN, leaving every card stuck at opacity 0.
+    if (!websites.length) return;
     setCurrentIndex((prev) => (prev + 1) % websites.length);
   }, [websites.length]);
 
@@ -105,7 +108,7 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
 
   return (
     <div 
-      className="relative w-full max-w-6xl mx-auto h-[550px] sm:h-[600px] md:h-[650px] lg:h-[804px] flex items-center justify-center perspective-[1200px] py-12 md:py-16 group/carousel"
+      className="relative w-full max-w-6xl mx-auto h-[550px] sm:h-[600px] md:h-[650px] lg:h-[804px] flex items-center justify-center [perspective:1200px] py-12 md:py-16 group/carousel"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >

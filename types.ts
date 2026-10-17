@@ -28,13 +28,6 @@ export interface Article {
   categories: string[];
 }
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'model';
-  text: string;
-  isLoading?: boolean;
-}
-
 export interface SocialLink {
   platform: string;
   url: string;
@@ -95,10 +88,10 @@ export interface AppConfig {
     projects: DataSourceConfig;
     websites: DataSourceConfig;
   };
-  display: {
-    projectCount: number;
-    websiteCount: number;
-    articleCount: number;
+  display?: {
+    projectCount?: number;
+    websiteCount?: number;
+    articleCount?: number;
   };
   footer: {
     owner: string;

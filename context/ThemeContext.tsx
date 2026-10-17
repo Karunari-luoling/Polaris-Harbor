@@ -12,7 +12,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('light');
+  // The inline bootstrap script in index.html already applied the same precedence
+  // rules before first paint, so seed from the DOM instead of a hardcoded default.
+  const [theme, setTheme] = useState<Theme>(() =>
+    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  );
   const [config, setConfig] = useState<ThemeConfig | null>(null);
 
   // 判断当前时间是否处于自定义暗色时间段
@@ -64,6 +68,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [config]);
 
   useEffect(() => {
+    // Until config lands the bootstrap script's result is authoritative — recomputing
+    // without it would forget the custom-schedule rule and flip the theme back.
+    if (!config) return;
+
     const computedTheme = calculateTheme();
     setTheme(computedTheme);
 
@@ -73,7 +81,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       root.classList.remove('dark');
     }
-  }, [calculateTheme]);
+  }, [calculateTheme, config]);
 
   useEffect(() => {
     if (config?.mode !== 'custom') return;

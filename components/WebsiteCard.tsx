@@ -51,6 +51,8 @@ const WebsiteCard: React.FC<WebsiteCardProps> = ({ website, disableHoverEffects 
         <img 
           src={website.thumbnail} 
           alt={website.title} 
+          loading="lazy" 
+          decoding="async" 
           className={`w-full h-full object-cover transition-transform duration-700 ease-out ${imgHoverClasses}`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
