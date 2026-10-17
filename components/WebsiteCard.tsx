@@ -9,6 +9,8 @@ interface WebsiteCardProps {
   forceActionIcon?: boolean;
   // 轮播宽屏下把截图压矮一点，让卡片整体更矮、首屏能看到更多内容
   imageAspectRatio?: string;
+  // 顶部浏览器条是否整条可点开网站。轮播里只有活跃卡需要，侧卡点击是切到中间
+  linkHeader?: boolean;
 }
 
 const WebsiteCard: React.FC<WebsiteCardProps> = ({
@@ -16,6 +18,7 @@ const WebsiteCard: React.FC<WebsiteCardProps> = ({
   disableHoverEffects = false,
   forceActionIcon = false,
   imageAspectRatio,
+  linkHeader = true,
 }) => {
   const { websites: copy } = useCopy();
 
@@ -36,21 +39,39 @@ const WebsiteCard: React.FC<WebsiteCardProps> = ({
   // 轮播强制显示箭头，普通卡片则跟随 hover 状态
   const showActionIcon = !disableHoverEffects || forceActionIcon;
 
+  const headerClass =
+    'relative z-10 flex items-center gap-3 border-b border-[var(--line)] bg-black/[0.06] px-4 py-3 dark:bg-white/[0.025]';
+
+  const headerInner = (
+    <>
+      <div className="flex gap-1.5">
+        <span className="h-2 w-2 rounded-full bg-[#ff9b9b] opacity-25 transition-all duration-300 group-hover:opacity-90 group-hover:shadow-[0_0_6px_rgba(255,155,155,0.45)]" />
+        <span className="h-2 w-2 rounded-full bg-[var(--lamp)] opacity-25 transition-all delay-75 duration-300 group-hover:opacity-90 group-hover:shadow-[0_0_6px_var(--glow-lamp)]" />
+        <span className="h-2 w-2 rounded-full bg-[var(--accent)] opacity-25 transition-all delay-150 duration-300 group-hover:opacity-90 group-hover:shadow-[0_0_6px_var(--glow-teal)]" />
+      </div>
+      <div className="flex h-7 flex-1 items-center truncate rounded-md border border-[var(--line)] bg-[var(--bg-0)]/55 px-3 font-mono text-[10px] text-faint">
+        <Globe size={10} className="mr-2 shrink-0 text-faint" />
+        <span className="truncate">{website.url.replace(/^https?:\/\//, '')}</span>
+      </div>
+    </>
+  );
+
   return (
     <div
       className={`group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-[var(--line)] bg-[var(--panel-strong)] transition-all duration-500 ease-out ${hoverClasses}`}
     >
-      <div className="relative z-10 flex items-center gap-3 border-b border-[var(--line)] bg-black/[0.06] px-4 py-3 dark:bg-white/[0.025]">
-        <div className="flex gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#ff9b9b]/80 shadow-[0_0_6px_rgba(255,155,155,0.45)]" />
-          <span className="h-2 w-2 rounded-full bg-[var(--lamp)]/90 shadow-[0_0_6px_var(--glow-lamp)]" />
-          <span className="h-2 w-2 rounded-full bg-[var(--accent)]/80 shadow-[0_0_6px_var(--glow-teal)]" />
-        </div>
-        <div className="flex h-7 flex-1 items-center truncate rounded-md border border-[var(--line)] bg-[var(--bg-0)]/55 px-3 font-mono text-[10px] text-faint">
-          <Globe size={10} className="mr-2 shrink-0 text-faint" />
-          <span className="truncate">{website.url.replace(/^https?:\/\//, '')}</span>
-        </div>
-      </div>
+      {linkHeader ? (
+        <a
+          href={website.url}
+          target="_blank"
+          rel="noreferrer"
+          className={`${headerClass} cursor-pointer transition-colors duration-300 hover:bg-black/[0.12] dark:hover:bg-white/[0.06]`}
+        >
+          {headerInner}
+        </a>
+      ) : (
+        <div className={headerClass}>{headerInner}</div>
+      )}
 
       <div
         className="relative z-10 aspect-[16/10] overflow-hidden border-b border-[var(--line)] bg-[var(--bg-1)]"

@@ -436,6 +436,7 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
                 disableHoverEffects
                 forceActionIcon
                 imageAspectRatio={t.imageRatio}
+                linkHeader={isActive}
               />
             </div>
           </div>
