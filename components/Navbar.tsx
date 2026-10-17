@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { Menu, X, Code, Globe, BookOpen, User, Sun, Moon } from 'lucide-react';
 import { AppConfig } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { useCopy } from '../context/CopyContext';
 
 interface NavbarProps {
   siteConfig: AppConfig['site'];
@@ -12,22 +13,23 @@ const Navbar: React.FC<NavbarProps> = ({ siteConfig }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { nav } = useCopy();
 
   useEffect(() => {
     // 滚动一定距离后为导航添加毛玻璃背景与阴影
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // 路由导航项配置，便于复用在桌面端和移动端菜单
   const navItems = [
-    { name: '主页', path: '/', icon: <User size={18} /> },
-    { name: '项目', path: '/projects', icon: <Code size={18} /> },
-    { name: '网站', path: '/websites', icon: <Globe size={18} /> },
-    { name: '文章', path: '/articles', icon: <BookOpen size={18} /> },
+    { name: nav.home, path: '/', icon: <User size={18} /> },
+    { name: nav.projects, path: '/projects', icon: <Code size={18} /> },
+    { name: nav.websites, path: '/websites', icon: <Globe size={18} /> },
+    { name: nav.articles, path: '/articles', icon: <BookOpen size={18} /> },
   ];
 
   return (

@@ -1,13 +1,16 @@
 import React from 'react';
 import { Article } from '../types';
 import { Calendar, ArrowRight, Tag, Folder } from 'lucide-react';
+import { useCopy } from '../context/CopyContext';
 
 interface ArticleCardProps {
   article: Article;
 }
 
 const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
-  const formattedDate = new Date(article.pubDate).toLocaleDateString('en-US', {
+  const { articles: copy } = useCopy();
+
+  const formattedDate = new Date(article.pubDate).toLocaleDateString(copy.dateLocale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
@@ -17,7 +20,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
 
   // 去掉富文本标签，仅保留纯文本摘要，避免列表页出现混排
   const textContent = article.description.replace(/<[^>]+>/g, '');
-  const primaryCategory = categories[0] ?? 'Uncategorized';
+  const primaryCategory = categories[0] ?? copy.uncategorized;
   const secondaryCategories = categories.slice(1, 4);
 
   return (
@@ -63,7 +66,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
             </div>
             
             <span className="hidden sm:flex items-center text-sm font-bold text-blue-600 dark:text-blue-400 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
-              Read <ArrowRight size={16} className="ml-1.5" />
+              {copy.action} <ArrowRight size={16} className="ml-1.5" />
             </span>
           </div>
         </div>

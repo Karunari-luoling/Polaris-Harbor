@@ -2,12 +2,14 @@ import React from 'react';
 import { Project } from '../types';
 import { ArrowUpRight } from 'lucide-react';
 import { RepoPlatformIcon, getRepoPlatformLabel } from './RepoPlatformIcon';
+import { useCopy } from '../context/CopyContext';
 
 interface ProjectCardProps {
   project: Project;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
+  const { projects: copy } = useCopy();
   return (
     <div className="group relative flex flex-col bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/20 dark:hover:shadow-blue-900/30 hover:border-blue-500/30 dark:hover:border-blue-400/30 h-full overflow-hidden">
 
@@ -54,7 +56,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
             rel="noreferrer" 
             className="flex items-center justify-center gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-blue-600 dark:hover:bg-white dark:hover:text-blue-600 active:scale-95 shadow-lg shadow-slate-900/10 dark:shadow-black/20 hover:shadow-blue-600/20"
           >
-            View Project <ArrowUpRight size={16} />
+            {copy.action} <ArrowUpRight size={16} />
           </a>
           
           {/* 若提供仓库地址则展示开源平台入口（根据链接自适应图标） */}

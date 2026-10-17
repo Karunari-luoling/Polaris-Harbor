@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { defineConfig, type Plugin, type ResolvedConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { load as loadYaml } from 'js-yaml';
 
@@ -8,10 +8,13 @@ type AnyRecord = Record<string, any>;
 
 const CONFIG_YML_PATH = path.resolve(__dirname, 'public/config.yml');
 
+// Routed pages, used for canonical URLs and sitemap.xml.
+const SITE_ROUTES = ['/', '/projects', '/websites', '/articles'];
+
 function asNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
-  return trimmed.trim().length ? trimmed : undefined;
+  return trimmed.length ? trimmed : undefined;
 }
 
 function escapeHtmlText(value: string): string {
@@ -26,10 +29,65 @@ function escapeHtmlAttr(value: string): string {
   return escapeHtmlText(value).replaceAll('"', '&quot;');
 }
 
+function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}
+
 // Safe to embed inside an inline <script>: closes the only escaping hole that
 // matters here (a value containing "</script>"), without touching JS semantics.
 function toInlineScriptJson(value: unknown): string {
   return JSON.stringify(value).replaceAll('<', '\\u003c').replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029');
+}
+
+// Strips any trailing slash so callers can append a route path predictably.
+function normalizeCanonical(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
+}
+
+// Accepts a full URL or a bare host and returns its origin plus path, or null when
+// the value is relative or unparseable - those need no connection warm-up.
+function parseExternalUrl(value: unknown): { origin: string; pathname: string } | null {
+  const raw = asNonEmptyString(value);
+  if (!raw) return null;
+  try {
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return { origin: url.origin, pathname: url.pathname };
+  } catch {
+    return null;
+  }
+}
+
+// Above-the-fold assets declared in config.yml, so swapping the image host there
+// moves the preconnect hints with it instead of leaving a hostname baked into HTML.
+function collectAssetOrigins(config: AnyRecord, canonical: string | null): string[] {
+  const site = (config.site ?? {}) as AnyRecord;
+  const candidates: unknown[] = [
+    (config.profile as AnyRecord | undefined)?.avatar,
+    site.logoImage,
+    site.favicon,
+    (config.seo as AnyRecord | undefined)?.ogImage,
+    ...(Array.isArray(site.extraPreconnect) ? site.extraPreconnect : []),
+  ];
+
+  const origins = new Set<string>();
+  for (const candidate of candidates) {
+    const parsed = parseExternalUrl(candidate);
+    if (!parsed || parsed.origin === canonical) continue;
+    origins.add(parsed.origin);
+  }
+  return [...origins];
 }
 
 function loadAppConfig(): AnyRecord | null {
@@ -79,10 +137,30 @@ function resolve(){
 if(resolve()==='dark')document.documentElement.classList.add('dark');
 })();</script>`;
 
+function buildRobotsTxt(canonical: string | null): string {
+  const lines = ['User-agent: *', 'Allow: /', ''];
+  if (canonical) lines.push(`Sitemap: ${canonical}/sitemap.xml`, '');
+  return lines.join('\n');
+}
+
+function buildSitemapXml(canonical: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = SITE_ROUTES.map(
+    route => `  <url>\n    <loc>${escapeXml(`${canonical}${route === '/' ? '/' : route}`)}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`
+  ).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+}
+
 function injectHeadFromConfig(): Plugin {
+  let resolved: ResolvedConfig | null = null;
+  let canonical: string | null = null;
+
   return {
     name: 'inject-head-from-config-yml',
     enforce: 'pre',
+    configResolved(config) {
+      resolved = config;
+    },
     transformIndexHtml(html) {
       const config = loadAppConfig();
       if (!config) return html;
@@ -103,21 +181,27 @@ function injectHeadFromConfig(): Plugin {
       const brandName = asNonEmptyString(site.brandName) ?? '';
       const favicon = asNonEmptyString(site.favicon) ?? '';
       const ogImage = asNonEmptyString(seo.ogImage) ?? asNonEmptyString(profile.avatar) ?? '';
+      canonical = normalizeCanonical(asNonEmptyString(seo.canonicalUrl));
 
       // Remove existing tags so we never end up with duplicates.
       let out = html;
       out = removeHeadTag(out, /<title>[\s\S]*?<\/title>\s*/gi);
       out = removeHeadTag(out, /<link\b[^>]*\brel\s*=\s*["']icon["'][^>]*>\s*/gi);
+      out = removeHeadTag(out, /<link\b[^>]*\brel\s*=\s*["']canonical["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bname\s*=\s*["']description["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bname\s*=\s*["']keywords["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bname\s*=\s*["']author["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bproperty\s*=\s*["']og:title["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bproperty\s*=\s*["']og:description["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bproperty\s*=\s*["']og:type["'][^>]*>\s*/gi);
+      out = removeHeadTag(out, /<meta\b[^>]*\bproperty\s*=\s*["']og:url["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bproperty\s*=\s*["']og:site_name["'][^>]*>\s*/gi);
       out = removeHeadTag(out, /<meta\b[^>]*\bproperty\s*=\s*["']og:image["'][^>]*>\s*/gi);
 
-      const headLines: string[] = [THEME_BOOTSTRAP(toInlineScriptJson(config.theme ?? null))];
+      const headLines: string[] = [
+        ...collectAssetOrigins(config, canonical).map(origin => `<link rel="preconnect" href="${escapeHtmlAttr(origin)}" />`),
+        THEME_BOOTSTRAP(toInlineScriptJson(config.theme ?? null)),
+      ];
       if (favicon) headLines.push(`<link rel="icon" href="${escapeHtmlAttr(favicon)}" />`);
       headLines.push(`<title>${escapeHtmlText(title)}</title>`);
       if (description) headLines.push(`<meta name="description" content="${escapeHtmlAttr(description)}" />`);
@@ -128,6 +212,12 @@ function injectHeadFromConfig(): Plugin {
       headLines.push(`<meta property="og:type" content="website" />`);
       if (brandName) headLines.push(`<meta property="og:site_name" content="${escapeHtmlAttr(brandName)}" />`);
       if (ogImage) headLines.push(`<meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />`);
+      // Crawlers that never run JS can only see what is baked in here.
+      if (canonical) {
+        headLines.push(`<link rel="canonical" href="${escapeHtmlAttr(`${canonical}/`)}" />`);
+        headLines.push(`<meta property="og:url" content="${escapeHtmlAttr(`${canonical}/`)}" />`);
+        headLines.push(`<meta name="twitter:card" content="summary_large_image" />`);
+      }
 
       const injection = `\n    ${headLines.join('\n    ')}\n`;
 
@@ -146,6 +236,20 @@ function injectHeadFromConfig(): Plugin {
       // Fallback: inject just before </head>.
       return out.replace(/<\/head>/i, `${injection}</head>`);
     },
+    closeBundle() {
+      const cfg = resolved;
+      if (!cfg || cfg.command !== 'build') return;
+
+      const outDir = path.resolve(cfg.root, cfg.build.outDir);
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.writeFileSync(path.join(outDir, 'robots.txt'), buildRobotsTxt(canonical), 'utf8');
+
+      if (canonical) {
+        fs.writeFileSync(path.join(outDir, 'sitemap.xml'), buildSitemapXml(canonical), 'utf8');
+      } else {
+        this.warn('seo.canonicalUrl is empty - sitemap.xml was not generated.');
+      }
+    },
     configureServer(server) {
       // Ensure edits to config.yml cause the HTML (title/meta/theme) to update immediately.
       server.watcher.add(CONFIG_YML_PATH);
@@ -158,17 +262,15 @@ function injectHeadFromConfig(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
+  // The dev proxy follows site.rssUrl, so the feed host is declared in exactly one place.
+  const rss = parseExternalUrl((loadAppConfig()?.site as AnyRecord | undefined)?.rssUrl);
+
   return {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      proxy: {
-        // Local-only escape hatch for the cross-origin RSS fetch; production must
-        // serve the feed same-origin or send Access-Control-Allow-Origin instead.
-        '/feed.xml': { target: env.RSS_ORIGIN || 'https://blog.byer.ink', changeOrigin: true },
-      },
+      proxy: rss ? { [rss.pathname]: { target: rss.origin, changeOrigin: true } } : {},
     },
     plugins: [injectHeadFromConfig(), react()],
     resolve: {

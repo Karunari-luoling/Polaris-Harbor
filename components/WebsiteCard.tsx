@@ -1,14 +1,18 @@
 import React from 'react';
 import { Website } from '../types';
 import { Globe, ArrowRight, ExternalLink } from 'lucide-react';
+import { useCopy } from '../context/CopyContext';
 
 interface WebsiteCardProps {
   website: Website;
   disableHoverEffects?: boolean;
   forceActionIcon?: boolean;
+  // 轮播宽屏下把截图压矮一点，让卡片整体更矮、首屏能看到更多内容
+  imageAspectRatio?: string;
 }
 
-const WebsiteCard: React.FC<WebsiteCardProps> = ({ website, disableHoverEffects = false, forceActionIcon = false }) => {
+const WebsiteCard: React.FC<WebsiteCardProps> = ({ website, disableHoverEffects = false, forceActionIcon = false, imageAspectRatio }) => {
+  const { websites: copy } = useCopy();
   // 各状态对应的配色，便于在卡片顶部角标复用
   const statusColors = {
     'Live': 'bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-800 dark:text-emerald-400',
@@ -47,7 +51,10 @@ const WebsiteCard: React.FC<WebsiteCardProps> = ({ website, disableHoverEffects 
         </div>
       </div>
 
-      <div className="relative z-10 aspect-[16/10] bg-slate-100 dark:bg-slate-800 overflow-hidden border-b border-slate-50 dark:border-slate-800">
+      <div
+        className="relative z-10 aspect-[16/10] bg-slate-100 dark:bg-slate-800 overflow-hidden border-b border-slate-50 dark:border-slate-800"
+        style={imageAspectRatio ? { aspectRatio: imageAspectRatio } : undefined}
+      >
         <img 
           src={website.thumbnail} 
           alt={website.title} 
@@ -79,7 +86,7 @@ const WebsiteCard: React.FC<WebsiteCardProps> = ({ website, disableHoverEffects 
             rel="noreferrer"
             className="inline-flex items-center text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 group/link transition-colors"
           >
-            Visit Site
+            {copy.action}
             <ExternalLink size={14} className="ml-1.5 opacity-50 group-hover/link:opacity-100 transition-opacity" />
           </a>
           {showActionIcon && (

@@ -51,11 +51,10 @@ export interface SeoConfig {
   keywords?: string;
   author?: string;
   ogImage?: string;
-  twitterHandle?: string;
+  canonicalUrl?: string;
 }
 
 export type ThemeMode = 'auto' | 'manual' | 'custom';
-
 export interface ThemeConfig {
   mode: ThemeMode;
   default?: 'light' | 'dark';
@@ -65,9 +64,48 @@ export interface ThemeConfig {
   };
 }
 
+export interface CopyConfig {
+  hero: {
+    greeting: string;
+  };
+  nav: {
+    home: string;
+    projects: string;
+    websites: string;
+    articles: string;
+  };
+  projects: {
+    title: string;
+    description: string;
+    viewAll: string;
+    action: string;
+  };
+  websites: {
+    title: string;
+    description: string;
+    viewAll: string;
+    action: string;
+  };
+  articles: {
+    title: string;
+    description: string;
+    readMore: string;
+    action: string;
+    loading: string;
+    empty: string;
+    noFeed: string;
+    uncategorized: string;
+    dateLocale: string;
+  };
+  footer: {
+    rights: string;
+  };
+}
+
 export interface AppConfig {
   seo?: SeoConfig;
   theme?: ThemeConfig;
+  copy?: Partial<CopyConfig>;
   profile: {
     name: string;
     title: string;
@@ -83,6 +121,7 @@ export interface AppConfig {
     favicon?: string;
     rssUrl?: string;
     iconFontUrl?: string;
+    extraPreconnect?: string[];
   };
   dataSources: {
     projects: DataSourceConfig;

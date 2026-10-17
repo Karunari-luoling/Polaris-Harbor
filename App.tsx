@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Project, Website, Article, AppConfig } from './types';
 import { fetchArticles } from './services/rssService';
 import { fetchConfig, fetchExternalData } from './services/configService';
-import { applySeoConfig } from './services/seoService';
+import { applySeoConfig, applyCanonicalUrl } from './services/seoService';
 import { useTheme } from './context/ThemeContext';
+import { CopyProvider, resolveCopy, useCopy } from './context/CopyContext';
 import Navbar from './components/Navbar';
 import ProjectCard from './components/ProjectCard';
 import WebsiteCard from './components/WebsiteCard';
@@ -33,21 +34,6 @@ const iconMap: Record<string, React.FC<any>> = {
   rss: Rss
 };
 
-const projectsSectionCopy = {
-  title: '我的项目',
-  description: '这里放了一些最近我在捣鼓的项目，都非常的有趣，欢迎常来逛逛！'
-};
-
-const websitesSectionCopy = {
-  title: '我的网站',
-  description: '这些是我部署的网站，各种功能应有尽有，欢迎来试试！总有一个能帮到你！'
-};
-
-const articlesSectionCopy = {
-  title: '最新文章',
-  description: '除了敲代码，我还喜欢写关于生活和技术的文章。这里有我最近的一些文章，欢迎阅读！'
-};
-
 const getSocialIcon = (iconName: string) => {
   const LucideIcon = iconMap[iconName.toLowerCase()];
   if (LucideIcon) {
@@ -66,6 +52,7 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, websites, loading }) => {
+  const { hero, projects: projectsSectionCopy, websites: websitesSectionCopy, articles: articlesSectionCopy } = useCopy();
   const isProjectCountOdd = projects.length % 2 !== 0;
   const profileTagline = config.profile.tagline || `${config.profile.title}. ${config.profile.description}`;
 
@@ -80,7 +67,7 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
              <div className="absolute bottom-2 right-2 w-8 h-8 bg-emerald-500 border-4 border-white dark:border-slate-900 rounded-full shadow-lg"></div>
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4 drop-shadow-sm">
-            Hello, I'm <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">{config.profile.name}</span>
+            {hero.greeting} <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">{config.profile.name}</span>
           </h1>
           <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl mx-auto mb-8 font-medium">
              {profileTagline}
@@ -117,9 +104,9 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
                      <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
                        {projectsSectionCopy.description}
                      </p>
-                     <a href="#/projects" className="inline-flex items-center text-blue-600 dark:text-blue-400 font-semibold hover:underline hover:text-blue-700 transition-colors">
-                       View all projects <ArrowRight size={16} className="ml-2" />
-                     </a>
+                     <Link to="/projects" className="inline-flex items-center text-blue-600 dark:text-blue-400 font-semibold hover:underline hover:text-blue-700 transition-colors">
+                       {projectsSectionCopy.viewAll} <ArrowRight size={16} className="ml-2" />
+                     </Link>
                    </div>
                 </div>
                 {projects.length > 1 && (
@@ -137,17 +124,17 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
                       {projectsSectionCopy.description}
                     </p>
                   </div>
-                  <a href="#/projects" className="hidden md:inline-flex items-center text-blue-600 dark:text-blue-400 font-semibold hover:underline whitespace-nowrap mb-2">
-                    View all projects <ArrowRight size={16} className="ml-2" />
-                  </a>
+                  <Link to="/projects" className="hidden md:inline-flex items-center text-blue-600 dark:text-blue-400 font-semibold hover:underline whitespace-nowrap mb-2">
+                    {projectsSectionCopy.viewAll} <ArrowRight size={16} className="ml-2" />
+                  </Link>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                    {projects.map(p => <ProjectCard key={p.id} project={p} />)}
                 </div>
                 <div className="mt-6 md:hidden text-center">
-                   <a href="#/projects" className="inline-flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700">
-                    View all projects <ArrowRight size={16} className="ml-1" />
-                  </a>
+                   <Link to="/projects" className="inline-flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700">
+                    {projectsSectionCopy.viewAll} <ArrowRight size={16} className="ml-1" />
+                  </Link>
                 </div>
               </>
             )}
@@ -163,17 +150,17 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{websitesSectionCopy.title}</h2>
                  <p className="text-slate-600 dark:text-slate-400 mt-1">{websitesSectionCopy.description}</p>
               </div>
-              <a href="#/websites" className="hidden md:flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors hover:underline">
-                View all websites <ArrowRight size={16} className="ml-1" />
-              </a>
+              <Link to="/websites" className="hidden md:flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors hover:underline">
+                {websitesSectionCopy.viewAll} <ArrowRight size={16} className="ml-1" />
+              </Link>
             </div>
             
             <Website3DCarousel websites={websites} />
 
             <div className="mt-2 md:hidden text-center">
-               <a href="#/websites" className="inline-flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700">
-                View all websites <ArrowRight size={16} className="ml-1" />
-              </a>
+               <Link to="/websites" className="inline-flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700">
+                {websitesSectionCopy.viewAll} <ArrowRight size={16} className="ml-1" />
+              </Link>
             </div>
           </section>
         )}
@@ -191,14 +178,14 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
           ) : (
             <div className="p-8 text-center bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-lg text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
                {loading 
-                ? 'Loading articles...' 
-                : (config.site.rssUrl ? 'No articles found.' : 'No RSS feed configured.')}
+                ? articlesSectionCopy.loading 
+                : (config.site.rssUrl ? articlesSectionCopy.empty : articlesSectionCopy.noFeed)}
             </div>
           )}
           <div className="mt-6 flex justify-end">
-             <a href="#/articles" className="inline-flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors hover:underline">
-              Read more articles <ArrowRight size={16} className="ml-1" />
-            </a>
+             <Link to="/articles" className="inline-flex items-center text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors hover:underline">
+              {articlesSectionCopy.readMore} <ArrowRight size={16} className="ml-1" />
+            </Link>
           </div>
         </section>
       </div>
@@ -206,50 +193,59 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
   );
 };
 
-const ProjectsPage: React.FC<{ projects: Project[] }> = ({ projects }) => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div className="mb-10">
-      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{projectsSectionCopy.title}</h1>
-      <p className="text-slate-600 dark:text-slate-400">{projectsSectionCopy.description}</p>
+const ProjectsPage: React.FC<{ projects: Project[] }> = ({ projects }) => {
+  const { projects: projectsSectionCopy } = useCopy();
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="mb-10">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{projectsSectionCopy.title}</h1>
+        <p className="text-slate-600 dark:text-slate-400">{projectsSectionCopy.description}</p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        {projects.map(p => <ProjectCard key={p.id} project={p} />)}
+      </div>
     </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-      {projects.map(p => <ProjectCard key={p.id} project={p} />)}
-    </div>
-  </div>
-);
+  );
+};
 
-const WebsitesPage: React.FC<{ websites: Website[] }> = ({ websites }) => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-     <div className="mb-10">
-      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{websitesSectionCopy.title}</h1>
-      <p className="text-slate-600 dark:text-slate-400">{websitesSectionCopy.description}</p>
+const WebsitesPage: React.FC<{ websites: Website[] }> = ({ websites }) => {
+  const { websites: websitesSectionCopy } = useCopy();
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="mb-10">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{websitesSectionCopy.title}</h1>
+        <p className="text-slate-600 dark:text-slate-400">{websitesSectionCopy.description}</p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {websites.map(w => <WebsiteCard key={w.id} website={w} />)}
+      </div>
     </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {websites.map(w => <WebsiteCard key={w.id} website={w} />)}
-    </div>
-  </div>
-);
+  );
+};
 
-const ArticlesPage: React.FC<{ articles: Article[], loading: boolean }> = ({ articles, loading }) => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div className="mb-10">
-      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{articlesSectionCopy.title}</h1>
-      <p className="text-slate-600 dark:text-slate-400">{articlesSectionCopy.description}</p>
+const ArticlesPage: React.FC<{ articles: Article[], loading: boolean }> = ({ articles, loading }) => {
+  const { articles: articlesSectionCopy } = useCopy();
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="mb-10">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{articlesSectionCopy.title}</h1>
+        <p className="text-slate-600 dark:text-slate-400">{articlesSectionCopy.description}</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {loading ? (
+          [1,2,3,4].map(i => <div key={i} className="h-48 bg-white/50 dark:bg-slate-800/50 rounded-2xl animate-pulse"></div>)
+        ) : articles.length > 0 ? (
+          articles.map(a => <ArticleCard key={a.guid} article={a} />)
+        ) : (
+          <div className="col-span-1 lg:col-span-2 text-center py-12 text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl">
+            {articlesSectionCopy.empty}
+          </div>
+        )}
+      </div>
     </div>
-    
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {loading ? (
-        [1,2,3,4].map(i => <div key={i} className="h-48 bg-white/50 dark:bg-slate-800/50 rounded-2xl animate-pulse"></div>)
-      ) : articles.length > 0 ? (
-        articles.map(a => <ArticleCard key={a.guid} article={a} />)
-      ) : (
-        <div className="col-span-1 lg:col-span-2 text-center py-12 text-slate-500 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl">
-           No articles found.
-        </div>
-      )}
-    </div>
-  </div>
-);
+  );
+};
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -326,7 +322,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location]);
+    // BrowserRouter 下每个路由都要有自己的 canonical，否则会互相声明重复内容
+    if (config) applyCanonicalUrl(config);
+  }, [location, config]);
 
   if (configError) {
     return (
@@ -344,6 +342,8 @@ const App: React.FC = () => {
     );
   }
 
+  const copy = resolveCopy(config.copy);
+
   // 首页仅截取配置数量，避免一次性渲染过多卡片
   const display = config.display;
   const homeProjects = projects.slice(0, display?.projectCount ?? 3);
@@ -353,6 +353,7 @@ const App: React.FC = () => {
   const noiseBg = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E")`;
 
   return (
+    <CopyProvider value={copy}>
     <div className="min-h-screen flex flex-col font-sans text-slate-900 dark:text-slate-100 transition-colors duration-300 relative">
       <div className="fixed inset-0 -z-50 h-full w-full bg-slate-50 dark:bg-[#020617] transition-colors duration-500">
          
@@ -395,7 +396,7 @@ const App: React.FC = () => {
       <footer className="bg-white/40 dark:bg-slate-900/40 backdrop-blur-md border-t border-slate-200/50 dark:border-slate-800/50 py-8 mt-12 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-col md:flex-row items-center gap-2 md:gap-6 text-slate-500 dark:text-slate-400 text-sm">
-             <span>&copy; {new Date().getFullYear()} {config.footer.owner}. All rights reserved.</span>
+             <span>&copy; {new Date().getFullYear()} {config.footer.owner}. {copy.footer.rights}</span>
              {config.footer.icp && (
                <a 
                 href="https://beian.miit.gov.cn/" 
@@ -421,6 +422,7 @@ const App: React.FC = () => {
         </div>
       </footer>
     </div>
+    </CopyProvider>
   );
 };
 
