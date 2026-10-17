@@ -12,6 +12,7 @@ import WebsiteCard from './components/WebsiteCard';
 import ArticleCard from './components/ArticleCard';
 import Website3DCarousel from './components/Website3DCarousel';
 import AmbientBackground from './components/AmbientBackground';
+import HeroOrbit from './components/HeroOrbit';
 import Reveal from './components/Reveal';
 import BrandMark from './components/BrandMark';
 import {
@@ -101,7 +102,7 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
   return (
     <div className="relative pb-24">
       {/* ── 首屏 ────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden pb-16 pt-6 md:pb-24 md:pt-10">
+      <section className="relative overflow-hidden pb-16 md:pb-24">
         <div
           className="pointer-events-none absolute left-1/2 top-10 -z-10 h-[520px] w-[520px] -translate-x-1/2 rounded-full opacity-70 blur-[90px]"
           style={{ background: 'radial-gradient(circle, var(--glow-lamp) 0%, transparent 66%)' }}
@@ -122,35 +123,12 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
         </div>
 
         <div className="shell relative z-10 flex flex-col items-center text-center">
-          <Reveal>
-            <div className="flex items-center justify-center gap-3">
-              <span className="h-px w-8 bg-gradient-to-r from-transparent to-[var(--lamp)]/60 sm:w-12" />
-              <span className="eyebrow">Polaris Harbor · 星港</span>
-              <span className="h-px w-8 bg-gradient-to-l from-transparent to-[var(--lamp)]/60 sm:w-12" />
-            </div>
+
+          <Reveal delay={90}>
+            <HeroOrbit avatar={config.profile.avatar} name={config.profile.name} />
           </Reveal>
 
-          <Reveal delay={90} className="mt-9 md:mt-11">
-            <div className="relative mx-auto h-36 w-36 md:h-40 md:w-40">
-              <div
-                className="absolute -inset-10 rounded-full opacity-80 blur-2xl"
-                style={{ background: 'radial-gradient(circle, var(--glow-lamp) 0%, transparent 68%)' }}
-              />
-              <div className="orbit-ring absolute -inset-5 rounded-full opacity-70" />
-              <div className="absolute -inset-5 rounded-full border border-[var(--line)]" />
-              <div className="avatar-halo absolute -inset-1.5 rounded-full opacity-90" />
-              <div className="absolute inset-0 overflow-hidden rounded-full border border-[var(--line-strong)] bg-[var(--bg-1)] p-[3px] shadow-[0_20px_60px_-25px_rgba(0,0,0,0.9)]">
-                <img
-                  src={config.profile.avatar}
-                  alt={`${config.profile.name} 的头像`}
-                  className="h-full w-full rounded-full object-cover"
-                />
-              </div>
-              <span className="status-dot absolute bottom-2.5 right-2.5 h-4 w-4 rounded-full border-[3px] border-[var(--bg-0)] bg-[var(--accent)] shadow-[0_0_16px_var(--accent)]" />
-            </div>
-          </Reveal>
-
-          <Reveal delay={160} className="mt-9">
+          <Reveal delay={160} className="mt-6 md:mt-8">
             <p className="font-mono text-[10px] uppercase tracking-[0.42em] text-faint">{hero.greeting}</p>
             <h1 className="hero-name mt-3 font-display text-[clamp(3.4rem,9.5vw,7.5rem)] font-semibold leading-[0.92] tracking-[0.03em]">
               {config.profile.name}
@@ -540,7 +518,7 @@ const App: React.FC = () => {
   return (
     <CopyProvider value={copy}>
       <div className="relative flex min-h-screen flex-col font-sans text-ink">
-        <AmbientBackground />
+        <AmbientBackground meteors={config.effects?.meteors} />
         <Navbar siteConfig={config.site} />
 
         <main className="relative flex-grow pt-24 md:pt-28">

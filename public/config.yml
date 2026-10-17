@@ -16,6 +16,13 @@ theme:
     start: "19:00" # Start Dark Mode
     end: "07:00"   # End Dark Mode (Start Light Mode)
 
+# 夜间动效。流星只在暗色主题下出现，浅色主题会完全跳过，不受下面频率影响。
+effects:
+  meteors:
+    enabled: true
+    # 平均每分钟划过几颗流星，0 表示关闭。建议 3–15；数值越大越热闹。
+    frequency: 7
+
 profile:
   name: "白夜"
   avatar: "https://blog.byer.ink/api/pro/f/4GOG/ava.jpg"

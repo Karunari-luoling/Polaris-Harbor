@@ -13,6 +13,7 @@
 
 - `seo`：搜索引擎与社交分享用的标题、描述、关键词、作者、分享图。`canonicalUrl` 填你的站点根地址（不带结尾斜杠），它同时决定 `robots.txt`、`sitemap.xml` 里的地址和页面里的 canonical，留空则不生成 `sitemap.xml`。
 - `theme`：`mode` 取 `auto`（跟随系统）、`manual`（固定 `default`）、`custom`（按 `customSchedule` 的时间段切暗色）。
+- `effects.meteors`：夜间流星。`enabled` 控制开关，`frequency` 是平均每分钟的流星数量（0 即关闭，建议 3–15）。流星只在暗色主题下绘制，且会遵守系统的“减少动态效果”设置。
 - `profile`：昵称、头像、称号、一句话简介、详细介绍、社交链接。`social[].icon` 填 Lucide 图标名（如 `github`、`mail`、`rss`）时直接用内置图标，填自定义 iconfont 类名时会回退成 `<i>`。
 - `site`：`logoImage` 导航栏 logo、`brandName` 品牌名、`favicon`、`rssUrl` 文章源。`extraPreconnect` 只在图床经过 302 跳转到另一个域名时才需要填，其余情况留空即可。
 - `dataSources`：`type` 取 `local`（`public/` 下的相对路径）或 `remote`（完整 URL），`format` 取 `yml` 或 `json`，两种格式都支持，可以一个数据源用 yml、另一个用 json。用 `remote` 时对方必须返回 `Access-Control-Allow-Origin`，GitHub raw 和 jsDelivr 默认就带。

@@ -40,6 +40,13 @@
     --thumb: rgba(18, 32, 47, 0.26);
     --vignette: rgba(120, 100, 70, 0.08);
 
+    /* 行星轨道 */
+    --orbit-track: rgba(18, 32, 47, 0.18);
+    --planet-rim: rgba(18, 32, 47, 0.3);
+    --planet-ring: rgba(176, 134, 72, 0.5);
+    --planet-ring-bright: rgba(214, 178, 114, 0.8);
+    --planet-ring-faint: rgba(176, 134, 72, 0.2);
+
     /* 湖面：浅色下是一池被晨光泡开的青灰水 */
     --lake-surface-0: #d8e5df;
     --lake-surface-1: #a4c6c0;
@@ -90,6 +97,13 @@
     --grid: rgba(143, 214, 255, 0.05);
     --thumb: rgba(196, 224, 255, 0.24);
     --vignette: rgba(0, 0, 0, 0.5);
+
+    /* 夜间行星：深色玻璃上的冷轨道 */
+    --orbit-track: rgba(196, 224, 255, 0.15);
+    --planet-rim: rgba(255, 255, 255, 0.1);
+    --planet-ring: rgba(255, 231, 188, 0.44);
+    --planet-ring-bright: rgba(255, 246, 222, 0.78);
+    --planet-ring-faint: rgba(255, 222, 168, 0.16);
 
     /* 湖面：深夜的墨蓝，反光偏冷，只有月影与码头灯是暖的 */
     --lake-surface-0: #0c2230;
@@ -362,30 +376,296 @@
   }
 
   /* ---- 首屏 -------------------------------------------------------------- */
-  .avatar-halo {
-    background: conic-gradient(
-      from 140deg,
-      rgba(255, 196, 110, 0.9),
-      rgba(110, 231, 183, 0.75),
-      rgba(143, 230, 255, 0.65),
-      rgba(255, 196, 110, 0.9)
-    );
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  /* ---- 行星轨道 / 中心头像 ------------------------------------------------ */
+  .orbit-stage {
+    --stage-size: clamp(248px, min(88vw, 58vh), 384px);
+    /* 头像必须跟着舞台缩：行星间隙按 --stage-size 等比算，头像比例一涨水星就会贴上头像框 */
+    --avatar-size: min(31vw, calc(var(--stage-size) * 0.375));
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: var(--stage-size);
+    height: var(--stage-size);
+    margin-inline: auto;
+    isolation: isolate;
   }
 
-  .orbit-ring {
-    border: 1px dashed var(--line-strong);
-    animation: orbit 48s linear infinite;
-  }
-
-  .status-dot::before {
-    content: '';
+  .planet-system {
     position: absolute;
     inset: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  /* 每条轨道独立计时，行星因此不会一直保持同一个队形 */
+  .planet-orbit {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 50%;
+    animation: orbit var(--orbit-duration) linear infinite;
+    will-change: transform;
+  }
+
+  .planet-track {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(var(--stage-size) * var(--orbit-scale) * 2);
+    height: calc(var(--stage-size) * var(--orbit-scale) * 2);
+    margin-left: calc(var(--stage-size) * var(--orbit-scale) * -1);
+    margin-top: calc(var(--stage-size) * var(--orbit-scale) * -1);
+    border: 1px solid var(--orbit-track);
     border-radius: 999px;
-    background: var(--accent);
-    animation: soft-ping 3.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    opacity: 0.62;
+    pointer-events: none;
+  }
+
+  .planet-node {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    transform: rotate(var(--planet-angle))
+      translateY(calc(var(--stage-size) * var(--orbit-scale) * -1))
+      rotate(calc(var(--planet-angle) * -1));
+  }
+
+  /* 抵消轨道整体旋转，让行星环与月卫保持稳定的朝向 */
+  .planet-counter {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--stage-size) * var(--planet-scale));
+    height: calc(var(--stage-size) * var(--planet-scale));
+    transform: translate(-50%, -50%);
+    animation: planet-counter var(--orbit-duration) linear infinite;
+    will-change: transform;
+    isolation: isolate;
+  }
+
+  .planet-body {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: 999px;
+    background: radial-gradient(
+      circle at 50% 48%,
+      var(--planet-base) 0%,
+      var(--planet-mid) 62%,
+      var(--planet-dark) 100%
+    );
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09), 0 0 0 1px var(--planet-rim),
+      0 0 12px -3px var(--planet-glow);
+  }
+
+  /* 补光层以行星中心为原点；外框先用 --planet-angle 摆好相位，
+     再叠加一圈 360° 动画，受光面便始终朝向中心。 */
+  .planet-light-frame {
+    position: absolute;
+    inset: 0;
+    transform: rotate(var(--planet-angle));
+  }
+
+  .planet-light {
+    position: absolute;
+    inset: -1px;
+    border-radius: 999px;
+    background: radial-gradient(
+        circle at 50% 82%,
+        var(--planet-lit) 0%,
+        rgba(255, 255, 255, 0.2) 34%,
+        transparent 62%
+      ),
+      linear-gradient(to top, transparent 42%, rgba(3, 8, 16, 0.52) 100%);
+    animation: orbit var(--orbit-duration) linear infinite;
+  }
+
+  /* 土星环：先画成正圆环带，再压扁并倾斜成椭圆。
+     环带用 radial-gradient 分层，内薄外亮，中间留一道卡西尼缝，
+     底下再垫一层弥散光当环系的辉光。 */
+  .planet-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 0;
+    width: 200%;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    transform: translate(-50%, -50%) rotate(-24deg) scaleY(0.3);
+    background: radial-gradient(closest-side,
+        transparent 0 53%,
+        var(--planet-ring-faint) 55% 66%,
+        var(--planet-ring) 67% 84%,
+        var(--planet-ring-bright) 85% 88%,
+        transparent 89% 92%,
+        var(--planet-ring) 93% 99%,
+        transparent 100%),
+      radial-gradient(closest-side, transparent 0 50%, var(--planet-ring-faint) 68%, transparent 92%);
+    clip-path: inset(0 0 50% 0);
+    opacity: 0.88;
+    pointer-events: none;
+  }
+
+  /* 近侧半环抬到行星之上，让环真正穿过星面；两半按环面中线切开，互不叠色 */
+  .planet-ring--front {
+    z-index: 2;
+    clip-path: inset(50% 0 0 0);
+    opacity: 1;
+  }
+
+  .planet-moon-orbit {
+    position: absolute;
+    inset: -45%;
+    z-index: 2;
+    border: 1px solid rgba(196, 224, 255, 0.1);
+    border-radius: 999px;
+    animation: orbit 9s linear infinite;
+    pointer-events: none;
+  }
+
+  .planet-moon {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: clamp(1.8px, calc(var(--stage-size) * 0.007), 2.8px);
+    height: clamp(1.8px, calc(var(--stage-size) * 0.007), 2.8px);
+    border-radius: 999px;
+    background: radial-gradient(circle at 35% 35%, #ffffff, #aab7c2 58%, #4b5864);
+    box-shadow: 0 0 4px rgba(210, 235, 255, 0.6);
+    transform: translate(-50%, -50%);
+  }
+
+  /* 木星与土星的云带 */
+  .planet-orbit--jupiter .planet-body::before {
+    content: '';
+    position: absolute;
+    inset: 10% -12%;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 246, 224, 0.3) 0 1px,
+      transparent 1px 3px,
+      rgba(116, 68, 34, 0.26) 3px 4px,
+      transparent 4px 7px
+    );
+    transform: rotate(-12deg);
+    opacity: 0.85;
+  }
+
+  .planet-orbit--saturn .planet-body::before {
+    content: '';
+    position: absolute;
+    inset: 16% -12%;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 250, 232, 0.28) 0 1px,
+      transparent 1px 4px,
+      rgba(120, 82, 40, 0.2) 4px 5px,
+      transparent 5px 8px
+    );
+    transform: rotate(-10deg);
+    opacity: 0.75;
+  }
+
+  .planet-orbit--earth .planet-body {
+    background: radial-gradient(circle at 37% 42%, rgba(110, 231, 183, 0.58) 0 16%, transparent 17%),
+      radial-gradient(circle at 63% 61%, rgba(110, 231, 183, 0.42) 0 12%, transparent 13%),
+      radial-gradient(circle at 50% 48%, var(--planet-base) 0%, var(--planet-mid) 62%, var(--planet-dark) 100%);
+  }
+
+  /* 六颗行星：轨道半径、公转周期、初始相位与配色都在这里调 */
+  .planet-orbit--mercury {
+    --orbit-scale: 0.212;
+    --orbit-duration: 38s;
+    --planet-angle: 155deg;
+    --planet-scale: 0.025;
+    --planet-base: #b8a998;
+    --planet-mid: #76695b;
+    --planet-dark: #2e2822;
+    --planet-lit: rgba(255, 244, 229, 0.9);
+    --planet-glow: rgba(205, 186, 164, 0.42);
+  }
+
+  .planet-orbit--venus {
+    --orbit-scale: 0.248;
+    --orbit-duration: 54s;
+    --planet-angle: 14deg;
+    --planet-scale: 0.033;
+    --planet-base: #f0ce8f;
+    --planet-mid: #b9813f;
+    --planet-dark: #58300f;
+    --planet-lit: rgba(255, 243, 206, 0.96);
+    --planet-glow: rgba(255, 206, 126, 0.55);
+  }
+
+  .planet-orbit--earth {
+    --orbit-scale: 0.31;
+    --orbit-duration: 74s;
+    --planet-angle: 285deg;
+    --planet-scale: 0.037;
+    --planet-base: #63c3d8;
+    --planet-mid: #267a9b;
+    --planet-dark: #0a2a3f;
+    --planet-lit: rgba(214, 247, 255, 0.95);
+    --planet-glow: rgba(126, 214, 255, 0.55);
+  }
+
+  .planet-orbit--mars {
+    --orbit-scale: 0.371;
+    --orbit-duration: 96s;
+    --planet-angle: 228deg;
+    --planet-scale: 0.03;
+    --planet-base: #d8835c;
+    --planet-mid: #9c4a2c;
+    --planet-dark: #3f140b;
+    --planet-lit: rgba(255, 216, 188, 0.95);
+    --planet-glow: rgba(255, 140, 96, 0.42);
+  }
+
+  .planet-orbit--jupiter {
+    --orbit-scale: 0.418;
+    --orbit-duration: 122s;
+    --planet-angle: 96deg;
+    --planet-scale: 0.05;
+    --planet-base: #e6c79b;
+    --planet-mid: #a8764a;
+    --planet-dark: #4a2b16;
+    --planet-lit: rgba(255, 244, 220, 0.95);
+    --planet-glow: rgba(255, 206, 150, 0.45);
+  }
+
+  .planet-orbit--saturn {
+    --orbit-scale: 0.494;
+    --orbit-duration: 150s;
+    --planet-angle: 336deg;
+    --planet-scale: 0.044;
+    --planet-base: #ecd9a8;
+    --planet-mid: #b28d54;
+    --planet-dark: #5a3a1b;
+    --planet-lit: rgba(255, 249, 225, 0.95);
+    --planet-glow: rgba(255, 224, 164, 0.46);
+  }
+
+  /* 中心头像：干净的圆形画框，不再叠日面 / 日珥 / 金色光环 */
+  .avatar-core {
+    position: relative;
+    z-index: 3;
+    width: var(--avatar-size);
+    aspect-ratio: 1;
+    padding: 3px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--bg-1);
+    box-shadow: 0 20px 60px -25px rgba(0, 0, 0, 0.9);
+  }
+
+  .avatar-face {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    object-fit: cover;
   }
 
   /* ---- 3D 轮播：湖面与倒影 ---------------------------------------------- */
@@ -942,15 +1222,12 @@ html.dark .ambient-grain {
   }
 }
 
-@keyframes soft-ping {
-  0% {
-    transform: scale(1);
-    opacity: 0.55;
+@keyframes planet-counter {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
   }
-  70%,
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
   }
 }
 
@@ -1082,8 +1359,10 @@ html.dark .ambient-grain {
   }
 
   .ambient-glow,
-  .orbit-ring,
-  .status-dot::before,
+  .planet-orbit,
+  .planet-counter,
+  .planet-light,
+  .planet-moon-orbit,
   .lake-canvas,
   .lake-swell,
   .lake-glints,

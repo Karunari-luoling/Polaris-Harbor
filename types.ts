@@ -64,6 +64,17 @@ export interface ThemeConfig {
   };
 }
 
+export interface MeteorEffectsConfig {
+  /** 是否在暗色主题下绘制流星，缺省为开启。 */
+  enabled?: boolean;
+  /** 平均每分钟出现的流星数量，0 表示关闭；建议 3–15。 */
+  frequency?: number;
+}
+
+export interface EffectsConfig {
+  meteors?: MeteorEffectsConfig;
+}
+
 export interface CopyConfig {
   hero: {
     greeting: string;
@@ -105,6 +116,7 @@ export interface CopyConfig {
 export interface AppConfig {
   seo?: SeoConfig;
   theme?: ThemeConfig;
+  effects?: EffectsConfig;
   copy?: Partial<CopyConfig>;
   profile: {
     name: string;

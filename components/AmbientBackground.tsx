@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
+import type { MeteorEffectsConfig } from '../types';
 
-// 环境层刻意做得很轻：一颗 canvas 同时画星尘与雨丝，DPR 封顶 1.35，
+// 环境层刻意做得很轻：一颗 canvas 同时画星尘、雨丝与流星，DPR 封顶 1.35，
 // 页面不可见时停掉 rAF，prefers-reduced-motion 下只画一帧静态星图。
 interface Star {
   x: number;
@@ -20,8 +21,32 @@ interface Drop {
   alpha: number;
 }
 
-const AmbientBackground: React.FC = () => {
+interface Meteor {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  age: number;
+  life: number;
+  length: number;
+  width: number;
+  warmth: boolean;
+}
+
+const DEFAULT_METEOR_FREQUENCY = 7;
+
+interface AmbientBackgroundProps {
+  /** config.yml 中的 effects.meteors；未传时回退到内置默认值。 */
+  meteors?: MeteorEffectsConfig;
+}
+
+const AmbientBackground: React.FC<AmbientBackgroundProps> = ({ meteors }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const meteorConfigRef = useRef(meteors);
+
+  useEffect(() => {
+    meteorConfigRef.current = meteors;
+  }, [meteors]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -36,6 +61,8 @@ const AmbientBackground: React.FC = () => {
     let height = 0;
     let stars: Star[] = [];
     let drops: Drop[] = [];
+    let meteorField: Meteor[] = [];
+    let meteorTimer = Number.POSITIVE_INFINITY;
     let raf = 0;
     let running = false;
     let last = 0;
@@ -62,6 +89,111 @@ const AmbientBackground: React.FC = () => {
         speed: 520 + Math.random() * 640,
         alpha: 0.10 + Math.random() * 0.16,
       }));
+    };
+
+    const readMeteorSettings = () => {
+      const config = meteorConfigRef.current;
+      const rawFrequency = Number(config?.frequency);
+      const frequency = Number.isFinite(rawFrequency)
+        ? Math.min(60, Math.max(0, rawFrequency))
+        : DEFAULT_METEOR_FREQUENCY;
+      return {
+        enabled: config?.enabled !== false && frequency > 0,
+        frequency,
+      };
+    };
+
+    const scheduleMeteor = (initial = false) => {
+      const { enabled, frequency } = readMeteorSettings();
+      if (!enabled) {
+        meteorTimer = Number.POSITIVE_INFINITY;
+        return;
+      }
+
+      const meanInterval = 60 / frequency;
+      // 指数分布让间隔保持随机而不机械；首颗流星稍微提前，别让人等太久。
+      const wait = -Math.log(1 - Math.random()) * meanInterval;
+      meteorTimer = initial
+        ? Math.min(3.2, Math.max(0.8, wait))
+        : Math.min(meanInterval * 4, Math.max(0.6, wait));
+    };
+
+    const spawnMeteor = () => {
+      const leftward = Math.random() < 0.6;
+      const lateral = (leftward ? -1 : 1) * (0.55 + Math.random() * 0.5);
+      const downward = 0.72 + Math.random() * 0.55;
+      const norm = Math.hypot(lateral, downward);
+      const speed = 640 + Math.random() * 380;
+      const startX = leftward
+        ? width * (0.3 + Math.random() * 0.78)
+        : width * (-0.08 + Math.random() * 0.78);
+
+      meteorField.push({
+        x: startX,
+        y: -30 - Math.random() * Math.min(180, height * 0.18),
+        vx: (lateral / norm) * speed,
+        vy: (downward / norm) * speed,
+        age: 0,
+        life: 0.95 + Math.random() * 0.55,
+        length: Math.min(width * 0.42, 120 + Math.random() * 150),
+        width: 0.85 + Math.random() * 0.9,
+        warmth: Math.random() < 0.7,
+      });
+    };
+
+    const drawMeteors = () => {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      for (const meteor of meteorField) {
+        const progress = Math.min(1, meteor.age / meteor.life);
+        const fade = Math.pow(Math.sin(Math.PI * progress), 0.72);
+        if (fade <= 0.01) continue;
+
+        const speed = Math.hypot(meteor.vx, meteor.vy) || 1;
+        const headX = meteor.x;
+        const headY = meteor.y;
+        const tailX = headX - (meteor.vx / speed) * meteor.length;
+        const tailY = headY - (meteor.vy / speed) * meteor.length;
+        const headColor = meteor.warmth ? '255, 245, 216' : '222, 247, 255';
+        const tailColor = meteor.warmth ? '255, 184, 96' : '116, 203, 255';
+
+        const trail = ctx.createLinearGradient(tailX, tailY, headX, headY);
+        trail.addColorStop(0, `rgba(${tailColor}, 0)`);
+        trail.addColorStop(0.55, `rgba(${tailColor}, ${0.18 * fade})`);
+        trail.addColorStop(0.86, `rgba(${headColor}, ${0.55 * fade})`);
+        trail.addColorStop(1, `rgba(255, 255, 255, ${0.92 * fade})`);
+
+        // 一笔虚的光晕 + 一笔实的芯，流星才有“烧穿夜空”的通透感。
+        ctx.globalAlpha = 0.42;
+        ctx.strokeStyle = trail;
+        ctx.lineWidth = meteor.width * 4.4;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(headX, headY);
+        ctx.stroke();
+
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = meteor.width;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(headX, headY);
+        ctx.stroke();
+
+        const radius = meteor.width * 9;
+        const glow = ctx.createRadialGradient(headX, headY, 0, headX, headY, radius);
+        glow.addColorStop(0, `rgba(255, 252, 240, ${0.88 * fade})`);
+        glow.addColorStop(0.35, `rgba(${headColor}, ${0.42 * fade})`);
+        glow.addColorStop(1, `rgba(${tailColor}, 0)`);
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(headX, headY, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
     };
 
     const resize = () => {
@@ -98,7 +230,11 @@ const AmbientBackground: React.FC = () => {
         ctx.fill();
       }
 
-      if (!dark) return;
+      if (!dark) {
+        meteorField = [];
+        meteorTimer = Number.POSITIVE_INFINITY;
+        return;
+      }
 
       for (const drop of drops) {
         if (animate) {
@@ -116,6 +252,32 @@ const AmbientBackground: React.FC = () => {
         ctx.lineWidth = 0.8;
         ctx.stroke();
       }
+
+      const meteorSettings = readMeteorSettings();
+      if (!meteorSettings.enabled) {
+        meteorField = [];
+        meteorTimer = Number.POSITIVE_INFINITY;
+        return;
+      }
+
+      if (animate) {
+        if (!Number.isFinite(meteorTimer)) scheduleMeteor(true);
+        meteorTimer -= dt;
+
+        if (meteorTimer <= 0) {
+          spawnMeteor();
+          scheduleMeteor();
+        }
+
+        meteorField = meteorField.filter(meteor => {
+          meteor.age += dt;
+          meteor.x += meteor.vx * dt;
+          meteor.y += meteor.vy * dt;
+          return meteor.age < meteor.life;
+        });
+      }
+
+      if (meteorField.length) drawMeteors();
     };
 
     const loop = (now: number) => {
@@ -145,6 +307,8 @@ const AmbientBackground: React.FC = () => {
 
     const onReduceChange = () => {
       if (reduceQuery.matches) {
+        meteorField = [];
+        meteorTimer = Number.POSITIVE_INFINITY;
         stop();
         draw(0, false);
       } else {
