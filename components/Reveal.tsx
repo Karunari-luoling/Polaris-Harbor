@@ -11,6 +11,7 @@ interface RevealProps {
 const Reveal: React.FC<RevealProps> = ({ children, delay = 0, className = '' }) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(false);
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     const element = ref.current;
@@ -35,10 +36,17 @@ const Reveal: React.FC<RevealProps> = ({ children, delay = 0, className = '' }) 
     return () => observer.disconnect();
   }, []);
 
+  // 入场时长 900ms，加上 delay 后撤掉 will-change，别让它常驻占着合成层。
+  useEffect(() => {
+    if (!visible) return;
+    const timer = window.setTimeout(() => setSettled(true), 950 + delay);
+    return () => window.clearTimeout(timer);
+  }, [visible, delay]);
+
   return (
     <div
       ref={ref}
-      className={`reveal ${visible ? 'is-visible' : ''} ${className}`.trim()}
+      className={`reveal ${visible ? 'is-visible' : ''} ${settled ? 'is-settled' : ''} ${className}`.trim()}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {children}

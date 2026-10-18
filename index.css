@@ -377,6 +377,14 @@
 
   /* ---- 首屏 -------------------------------------------------------------- */
   /* ---- 行星轨道 / 中心头像 ------------------------------------------------ */
+  /* 土星轨道几乎内切舞台顶边，星体连环会探出舞台十几像素。首屏若贴着舞台顶边裁，
+     土星转到最高点就被削掉一角，所以把裁剪线整体外拓，布局不动只放宽可见区。 */
+  .hero-clip {
+    overflow: hidden;
+    overflow: clip;
+    overflow-clip-margin: 28px;
+  }
+
   .orbit-stage {
     --stage-size: clamp(248px, min(88vw, 58vh), 384px);
     /* 头像必须跟着舞台缩：行星间隙按 --stage-size 等比算，头像比例一涨水星就会贴上头像框 */
@@ -767,7 +775,6 @@
     transform: translateY(100%) scaleY(-1);
     transform-origin: top center;
     backface-visibility: hidden;
-    will-change: transform;
   }
 
   .reflection-grid {
@@ -1118,6 +1125,12 @@
     opacity: 1;
     transform: none;
   }
+
+  /* 入场跑完就把层还掉：will-change 是常驻提层，整页十几个通栏高的层挂在
+     合成器上，移动端那点 tile 内存池会被直接占穿。 */
+  .reveal.is-settled {
+    will-change: auto;
+  }
 }
 
 /* ============================================================================
@@ -1211,6 +1224,15 @@ html.dark .ambient-grain {
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+@media (pointer: coarse), (min-resolution: 3dppx) {
+  /* 70px 是 CSS 值，dpr 3.5 下等于 245 设备像素的模糊半径，三张通屏大的 fixed
+     层各来一遍；而它们本来就已经是软到透明的径向渐变，糊不糊看不出差别。
+     去掉模糊后 transform 才真的回到合成器上，导航栏的 backdrop 也不再每帧重取。 */
+  .ambient-glow {
+    filter: none;
+  }
 }
 
 /* ============================================================================

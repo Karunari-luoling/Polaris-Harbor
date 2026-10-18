@@ -10,7 +10,7 @@ import Navbar from './components/Navbar';
 import ProjectCard from './components/ProjectCard';
 import WebsiteCard from './components/WebsiteCard';
 import ArticleCard from './components/ArticleCard';
-import Website3DCarousel from './components/Website3DCarousel';
+import Website3DCarousel, { useLakeDisabled } from './components/Website3DCarousel';
 import AmbientBackground from './components/AmbientBackground';
 import HeroOrbit from './components/HeroOrbit';
 import Reveal from './components/Reveal';
@@ -85,6 +85,7 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, websites, loading }) => {
   const { hero, projects: projectsSectionCopy, websites: websitesSectionCopy, articles: articlesSectionCopy } = useCopy();
+  const lakeDisabled = useLakeDisabled();
   const isProjectCountOdd = projects.length % 2 !== 0;
   const profileTagline = config.profile.tagline || `${config.profile.title}. ${config.profile.description}`;
   const [clock, setClock] = useState(() =>
@@ -102,7 +103,7 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
   return (
     <div className="relative pb-24">
       {/* ── 首屏 ────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden pb-16 md:pb-24">
+      <section className="hero-clip relative pb-16 md:pb-24">
         <div
           className="pointer-events-none absolute left-1/2 top-10 -z-10 h-[520px] w-[520px] -translate-x-1/2 rounded-full opacity-70 blur-[90px]"
           style={{ background: 'radial-gradient(circle, var(--glow-lamp) 0%, transparent 66%)' }}
@@ -212,7 +213,9 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
                         {projectsSectionCopy.viewAll} <ArrowRight size={14} />
                       </Link>
 
-                      <div className="mt-12 flex items-end gap-4 border-t border-[var(--line)] pt-5">
+                      {/* 两栏排版里当右栏的收尾装饰；单栏时它会掉到正文下面，
+                          变成顶上那个 01 编号的重复，所以只在 lg 以上存在。 */}
+                      <div className="mt-12 hidden items-end gap-4 border-t border-[var(--line)] pt-5 lg:flex">
                         <span className="font-display text-6xl leading-none text-[var(--line-strong)]">01</span>
                         <span className="pb-1 font-mono text-[9px] uppercase tracking-[0.28em] text-faint">
                           Exhibit · 精选项目
@@ -275,18 +278,12 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
 
             {/* 轮播不套展示框：卡片与湖面直接落在页面背景上 */}
             <Website3DCarousel websites={websites} />
-
-            <div className="relative z-10 mt-4 flex justify-center md:hidden">
-              <Link to="/websites" className="btn-ghost">
-                {websitesSectionCopy.viewAll} <ArrowRight size={14} />
-              </Link>
-            </div>
           </section>
         )}
 
         {/* 湖泊会继续铺到这一区背景上，内容整体抬到 z-10，位置不动但永远在水面之上 */}
-        {/* !-mt 抵消 space-y 注入的区块间距，让文章区整体上移 */}
-        <section id="articles" className="relative z-10 !-mt-10 md:!-mt-16">
+        {/* !-mt 把文章区抬进湖水里；湖不渲染的那一档必须收手，否则这 40–64px 会压到卡片上 */}
+        <section id="articles" className={`relative z-10 ${lakeDisabled ? '' : '!-mt-10 md:!-mt-16'}`}>
           <SectionHead
             index="03"
             label="Field Notes"

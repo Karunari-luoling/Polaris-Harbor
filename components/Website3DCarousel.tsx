@@ -59,6 +59,26 @@ type TierSpec = (typeof TIERS)[Tier];
 // 与 CSS 的 sm / lg 断点共用同一组阈值，避免 JS 档位和样式档位错配。
 const tierFor = (width: number): Tier => (width < 640 ? 'phone' : width < 1024 ? 'tablet' : 'desktop');
 
+// 触屏 / 高像素密度设备上整块湖不渲染。倒影那块画布在 dpr 3.5 下是六百万设备像素的
+// 软件光栅表层（位移滤镜不在 GPU 加速白名单），纵向单靠 LAKE_EXTRA_DEPTH 就已经突破
+// 移动 GPU 的纹理上限，Chrome 只能拆分重画，把整页的光栅预算吃穿——表现是连不属于湖的
+// 导航栏都会一半没画出来。按主指针类型和像素密度收，不按视口宽度收：桌面窄窗照旧。
+const NO_LAKE_QUERY = '(pointer: coarse), (min-resolution: 3dppx)';
+
+// 湖在不在，布局上还有第二处依赖：文章区原本用负边距把自己抬进湖水里
+// （!-mt-10 / md:!-mt-16），湖一没了那 40–64px 就直接压到卡片上。所以这个判断
+// 得能被外面读到，让"抬进湖里"和"湖"绑在同一件事上，而不是各按各的断点。
+export const useLakeDisabled = () => {
+  const [disabled, setDisabled] = useState(() => window.matchMedia(NO_LAKE_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(NO_LAKE_QUERY);
+    const sync = () => setDisabled(query.matches);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+  return disabled;
+};
+
 // 某层侧卡的纵向缩放。transform-origin 是卡片中心，所以侧卡缩得越小，
 // 它的底边离活跃卡底边越远。
 const sideScaleY = (t: TierSpec, abs: number) =>
@@ -211,6 +231,7 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
   const [moon, setMoon] = useState<MoonState>(() => computeMoon(new Date()));
+  const lakeEnabled = !useLakeDisabled();
   const rootRef = useRef<HTMLDivElement>(null);
   const stackRef = useRef<HTMLDivElement>(null);
   const swipeStartX = useRef<number | null>(null);
@@ -267,8 +288,9 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
   }, []);
 
   // 一分钟同步一次足够：月亮在 12 小时里横穿湖面，每分钟只移动几个像素，
-  // 位置变化交给 CSS 的 left/top transition 去抹平。
+  // 位置变化交给 CSS 的 left/top transition 去抹平。湖不渲染时没必要再挂着这个定时器。
   useEffect(() => {
+    if (!lakeEnabled) return;
     const sync = () => setMoon(computeMoon(new Date()));
     const timer = window.setInterval(sync, 60_000);
     const onVisibility = () => {
@@ -279,7 +301,7 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [lakeEnabled]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -511,7 +533,7 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
         倒影把整条卡片堆叠镜像一遍，每张卡围绕自己的底边翻转：活跃卡倒影最低，
         第三层卡倒影最高，像几排卡片站在同一片湖水的不同深度里。
       */}
-      {reflectHeight > 0 && (
+      {lakeEnabled && reflectHeight > 0 && (
         <div
           className="lake-zone"
           style={
@@ -621,6 +643,7 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
       )}
 
       {/* 水波扰动滤镜：频率在纵横方向拉开，条纹才会像被雨点打皱的水面 */}
+      {lakeEnabled && (
       <svg aria-hidden="true" focusable="false" className="pointer-events-none absolute h-0 w-0">
         <defs>
           <filter
@@ -673,6 +696,7 @@ const Website3DCarousel: React.FC<Website3DCarouselProps> = ({ websites }) => {
           </filter>
         </defs>
       </svg>
+      )}
     </div>
   );
 };
