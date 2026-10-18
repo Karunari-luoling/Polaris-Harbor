@@ -75,6 +75,38 @@ export interface EffectsConfig {
   meteors?: MeteorEffectsConfig;
 }
 
+export interface FiltersConfig {
+  search: string;
+  all: string;
+  clear: string;
+  noResults: string;
+  /** 支持 {n} 命中数与 {total} 总数两个占位符。 */
+  showing: string;
+  prev: string;
+  next: string;
+  /** 支持 {page} 当前页与 {pages} 总页数两个占位符。 */
+  pageLabel: string;
+  /** 候选值过多时折叠，{n} 是被折叠的条数。 */
+  more: string;
+  less: string;
+}
+
+export interface ReaderConfig {
+  loading: string;
+  original: string;
+  close: string;
+  notFound: string;
+}
+
+export interface StatesConfig {
+  notFoundTitle: string;
+  notFoundDescription: string;
+  backHome: string;
+  errorTitle: string;
+  errorDescription: string;
+  reload: string;
+}
+
 export interface CopyConfig {
   hero: {
     greeting: string;
@@ -111,6 +143,9 @@ export interface CopyConfig {
   footer: {
     rights: string;
   };
+  filters: FiltersConfig;
+  reader: ReaderConfig;
+  states: StatesConfig;
 }
 
 export interface AppConfig {
@@ -143,6 +178,7 @@ export interface AppConfig {
     projectCount?: number;
     websiteCount?: number;
     articleCount?: number;
+    articlePageSize?: number;
   };
   footer: {
     owner: string;

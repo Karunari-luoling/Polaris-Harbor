@@ -38,6 +38,32 @@ export const DEFAULT_COPY: CopyConfig = {
   footer: {
     rights: 'All rights reserved.',
   },
+  filters: {
+    search: '搜索',
+    all: '全部',
+    clear: '清空筛选',
+    noResults: '没有匹配的内容，换个条件试试。',
+    showing: '显示 {n} / 共 {total}',
+    prev: '上一页',
+    next: '下一页',
+    pageLabel: '第 {page} / {pages} 页',
+    more: '更多 ({n})',
+    less: '收起',
+  },
+  reader: {
+    loading: '正文加载中…',
+    original: '阅读原文',
+    close: '关闭',
+    notFound: '这篇文章已经找不到了。',
+  },
+  states: {
+    notFoundTitle: '这个地址没有对应的页面',
+    notFoundDescription: '链接可能写错了，或者这一页已经搬走。',
+    backHome: '回到主页',
+    errorTitle: '信号中断',
+    errorDescription: '这一页没能正常展开，重新加载通常就能恢复。',
+    reload: '重新加载',
+  },
 };
 
 // copy 只有两层，逐段浅合并即可让未写的字段继续继承内置值；未知段直接忽略，

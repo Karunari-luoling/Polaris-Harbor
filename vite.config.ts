@@ -151,6 +151,48 @@ function buildSitemapXml(canonical: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
+// Person + WebSite 结构化数据。爬虫不执行 JS 也能读到，所以和 SEO 头一样放在构建期。
+function buildJsonLd(config: AnyRecord, canonical: string): AnyRecord {
+  const seo = (config.seo ?? {}) as AnyRecord;
+  const profile = (config.profile ?? {}) as AnyRecord;
+  const site = (config.site ?? {}) as AnyRecord;
+
+  const name = asNonEmptyString(seo.author) ?? asNonEmptyString(profile.name) ?? '';
+  const description =
+    asNonEmptyString(seo.description) ?? asNonEmptyString(profile.tagline) ?? asNonEmptyString(profile.description) ?? '';
+  const social = Array.isArray(profile.social) ? profile.social : [];
+  const sameAs = social
+    .map(item => asNonEmptyString((item as AnyRecord | undefined)?.url))
+    .filter((url): url is string => !!url && /^https?:\/\//.test(url));
+
+  const graph: AnyRecord[] = [
+    {
+      '@type': 'WebSite',
+      '@id': `${canonical}/#website`,
+      url: `${canonical}/`,
+      name: asNonEmptyString(site.brandName) ?? name,
+      creator: { '@id': `${canonical}/#person` },
+    },
+    {
+      '@type': 'Person',
+      '@id': `${canonical}/#person`,
+      name,
+      url: `${canonical}/`,
+    },
+  ];
+
+  if (description) graph[1].description = description;
+  if (asNonEmptyString(profile.avatar)) graph[1].image = profile.avatar;
+  if (sameAs.length) graph[1].sameAs = sameAs;
+
+  return { '@context': 'https://schema.org', '@graph': graph };
+}
+
+// 订阅发现链接的类型要跟 feed 的真实格式对上，猜错时阅读器会拒收
+function feedMimeType(url: string): string {
+  return /atom/i.test(url) ? 'application/atom+xml' : 'application/rss+xml';
+}
+
 function injectHeadFromConfig(): Plugin {
   let resolved: ResolvedConfig | null = null;
   let canonical: string | null = null;
@@ -181,6 +223,7 @@ function injectHeadFromConfig(): Plugin {
       const brandName = asNonEmptyString(site.brandName) ?? '';
       const favicon = asNonEmptyString(site.favicon) ?? '';
       const ogImage = asNonEmptyString(seo.ogImage) ?? asNonEmptyString(profile.avatar) ?? '';
+      const rssUrl = asNonEmptyString(site.rssUrl) ?? '';
       canonical = normalizeCanonical(asNonEmptyString(seo.canonicalUrl));
 
       // Remove existing tags so we never end up with duplicates.
@@ -217,6 +260,15 @@ function injectHeadFromConfig(): Plugin {
         headLines.push(`<link rel="canonical" href="${escapeHtmlAttr(`${canonical}/`)}" />`);
         headLines.push(`<meta property="og:url" content="${escapeHtmlAttr(`${canonical}/`)}" />`);
         headLines.push(`<meta name="twitter:card" content="summary_large_image" />`);
+        // toInlineScriptJson 会把 < 转义掉，正文里出现 </script> 也提前闭合不了
+        headLines.push(
+          `<script type="application/ld+json">${toInlineScriptJson(buildJsonLd(config, canonical))}</script>`
+        );
+      }
+      if (rssUrl) {
+        headLines.push(
+          `<link rel="alternate" type="${feedMimeType(rssUrl)}" href="${escapeHtmlAttr(rssUrl)}" title="${escapeHtmlAttr(title)}" />`
+        );
       }
 
       const injection = `\n    ${headLines.join('\n    ')}\n`;

@@ -15,6 +15,8 @@ import AmbientBackground from './components/AmbientBackground';
 import HeroOrbit from './components/HeroOrbit';
 import Reveal from './components/Reveal';
 import BrandMark from './components/BrandMark';
+import { ArticleReader, useOpenReader } from './components/ArticleReader';
+import { ListPager, ListToolbar, useListQuery } from './components/ListToolbar';
 import {
   Github, Linkedin, Mail, Twitter, Facebook, Instagram, Youtube,
   Gitlab, Code, Terminal, Cpu, Coffee, Globe, Rss, ArrowRight, ArrowUpRight
@@ -86,6 +88,7 @@ interface HomePageProps {
 const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, websites, loading }) => {
   const { hero, projects: projectsSectionCopy, websites: websitesSectionCopy, articles: articlesSectionCopy } = useCopy();
   const lakeDisabled = useLakeDisabled();
+  const openReader = useOpenReader();
   const isProjectCountOdd = projects.length % 2 !== 0;
   const profileTagline = config.profile.tagline || `${config.profile.title}. ${config.profile.description}`;
   const [clock, setClock] = useState(() =>
@@ -301,7 +304,7 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
             <div className="flex flex-col gap-5">
               {articles.map((article, idx) => (
                 <Reveal key={article.guid} delay={idx * 60} className="h-full">
-                  <ArticleCard article={article} />
+                  <ArticleCard article={article} onOpen={a => openReader(a.guid)} />
                 </Reveal>
               ))}
             </div>
@@ -326,8 +329,55 @@ const HomePage: React.FC<HomePageProps> = ({ articles, config, projects, website
   );
 };
 
+// 分面参数名固定写在模块作用域，避免每次渲染都换一个新数组
+const PROJECT_FACETS = ['tag'];
+const WEBSITE_FACETS = ['status'];
+const ARTICLE_FACETS = ['category'];
+
+// 中文没有词形变化，整串小写包含匹配就够了，不值得为它引一个分词库
+const matchesText = (needle: string, ...haystacks: (string | undefined)[]) => {
+  const q = needle.trim().toLowerCase();
+  if (!q) return true;
+  return haystacks.some(value => value?.toLowerCase().includes(q));
+};
+
+// 分面按出现次数从多到少排，次数相同的保持数据里的先后
+const tally = (values: string[]) => {
+  const counts = new Map<string, number>();
+  values.forEach(value => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return [...counts].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
+};
+
+// feed 里的 <category> 只有文本，没有任何标记能区分分类和标签，只能按 Hexo 的固定
+// 顺序解释：每条第一项是分类、其余是标签。与 ArticleCard 拿 categories[0] 当主分类同口径。
+const articleFacetValues = (items: Article[]) => {
+  const categories = tally(items.map(a => (a.categories ?? [])[0]).filter(Boolean) as string[]);
+  const known = new Set(categories.map(entry => entry.value));
+  const tags = tally(items.flatMap(a => (a.categories ?? []).slice(1))).filter(entry => !known.has(entry.value));
+  return [...categories, ...tags];
+};
+
+const EmptyResults: React.FC<{ onClear: () => void }> = ({ onClear }) => {
+  const { filters: filtersCopy } = useCopy();
+  return (
+    <div className="glass flex min-h-[240px] flex-col items-center justify-center rounded-[26px] p-10 text-center">
+      <p className="font-display text-xl text-ink">{filtersCopy.noResults}</p>
+      <button type="button" onClick={onClear} className="btn-ghost mt-6">
+        {filtersCopy.clear}
+      </button>
+    </div>
+  );
+};
+
 const ProjectsPage: React.FC<{ projects: Project[] }> = ({ projects }) => {
   const { projects: projectsSectionCopy } = useCopy();
+  const query = useListQuery(PROJECT_FACETS);
+  const tag = query.facetOf('tag');
+
+  const shown = projects.filter(
+    p => (!tag || (p.tags ?? []).includes(tag)) && matchesText(query.search, p.title, p.description, ...(p.tags ?? []))
+  );
+
   return (
     <div className="shell py-10 md:py-14">
       <SectionHead
@@ -337,19 +387,36 @@ const ProjectsPage: React.FC<{ projects: Project[] }> = ({ projects }) => {
         title={projectsSectionCopy.title}
         description={projectsSectionCopy.description}
       />
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {projects.map((p, idx) => (
-          <Reveal key={p.id} delay={idx * 60} className="h-full">
-            <ProjectCard project={p} />
-          </Reveal>
-        ))}
-      </div>
+      <ListToolbar
+        facets={[{ param: 'tag', values: tally(projects.flatMap(p => p.tags ?? [])) }]}
+        query={query}
+        matched={shown.length}
+        total={projects.length}
+      />
+      {shown.length > 0 ? (
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {shown.map((p, idx) => (
+            <Reveal key={p.id} delay={idx * 60} className="h-full">
+              <ProjectCard project={p} />
+            </Reveal>
+          ))}
+        </div>
+      ) : (
+        <EmptyResults onClear={query.clear} />
+      )}
     </div>
   );
 };
 
 const WebsitesPage: React.FC<{ websites: Website[] }> = ({ websites }) => {
   const { websites: websitesSectionCopy } = useCopy();
+  const query = useListQuery(WEBSITE_FACETS);
+  const status = query.facetOf('status');
+
+  const shown = websites.filter(
+    w => (!status || w.status === status) && matchesText(query.search, w.title, w.description)
+  );
+
   return (
     <div className="shell py-10 md:py-14">
       <SectionHead
@@ -359,19 +426,52 @@ const WebsitesPage: React.FC<{ websites: Website[] }> = ({ websites }) => {
         title={websitesSectionCopy.title}
         description={websitesSectionCopy.description}
       />
-      <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
-        {websites.map((w, idx) => (
-          <Reveal key={w.id} delay={idx * 60} className="h-full">
-            <WebsiteCard website={w} />
-          </Reveal>
-        ))}
-      </div>
+      <ListToolbar
+        facets={[{ param: 'status', values: tally(websites.map(w => w.status)) }]}
+        query={query}
+        matched={shown.length}
+        total={websites.length}
+      />
+      {shown.length > 0 ? (
+        <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
+          {shown.map((w, idx) => (
+            <Reveal key={w.id} delay={idx * 60} className="h-full">
+              <WebsiteCard website={w} />
+            </Reveal>
+          ))}
+        </div>
+      ) : (
+        <EmptyResults onClear={query.clear} />
+      )}
     </div>
   );
 };
 
-const ArticlesPage: React.FC<{ articles: Article[]; loading: boolean }> = ({ articles, loading }) => {
+interface ArticlesPageProps {
+  articles: Article[];
+  loading: boolean;
+  pageSize: number;
+}
+
+const ArticlesPage: React.FC<ArticlesPageProps> = ({ articles, loading, pageSize }) => {
   const { articles: articlesSectionCopy } = useCopy();
+  const query = useListQuery(ARTICLE_FACETS);
+  const openReader = useOpenReader();
+  const category = query.facetOf('category');
+
+  const shown = articles.filter(
+    a =>
+      (!category || (a.categories ?? []).includes(category)) &&
+      // 摘要里是原始 HTML，不剥标签会搜到 div 这类标记名
+      matchesText(query.search, a.title, a.description.replace(/<[^>]+>/g, ' '), ...(a.categories ?? []))
+  );
+
+  const pageCount = Math.max(1, Math.ceil(shown.length / pageSize));
+  // 手填或过期的页码可能落在结果集之外，收敛到最后有效页而不是让人看到一片空白
+  const page = Math.min(query.page, pageCount);
+  const start = (page - 1) * pageSize;
+  const visible = shown.slice(start, start + pageSize);
+
   return (
     <div className="shell py-10 md:py-14">
       <SectionHead
@@ -382,24 +482,98 @@ const ArticlesPage: React.FC<{ articles: Article[]; loading: boolean }> = ({ art
         description={articlesSectionCopy.description}
       />
 
+      <ListToolbar
+        facets={[{ param: 'category', values: articleFacetValues(articles) }]}
+        query={query}
+        matched={shown.length}
+        total={articles.length}
+      />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {loading ? (
           [1, 2, 3, 4].map(i => (
             <div key={i} className="glass h-52 animate-pulse rounded-[26px]" />
           ))
-        ) : articles.length > 0 ? (
-          articles.map(a => <ArticleCard key={a.guid} article={a} />)
-        ) : (
+        ) : articles.length === 0 ? (
           <div className="glass col-span-1 flex min-h-[240px] flex-col items-center justify-center rounded-[26px] p-10 text-center lg:col-span-2">
             <Rss size={22} className="mb-4 text-faint" />
             <p className="font-mono text-[9px] uppercase tracking-[0.3em] text-faint">No Signal</p>
             <p className="mt-3 font-display text-xl text-ink">{articlesSectionCopy.empty}</p>
           </div>
+        ) : shown.length === 0 ? (
+          <div className="lg:col-span-2">
+            <EmptyResults onClear={query.clear} />
+          </div>
+        ) : (
+          visible.map(a => <ArticleCard key={a.guid} article={a} onOpen={item => openReader(item.guid)} />)
         )}
       </div>
+
+      {!loading && articles.length > 0 && <ListPager query={query} page={page} pageCount={pageCount} />}
     </div>
   );
 };
+
+const StateScreen: React.FC<{ eyebrow: string; title: string; description: string; action: React.ReactNode }> = ({
+  eyebrow,
+  title,
+  description,
+  action,
+}) => (
+  <div className="shell flex min-h-[58vh] flex-col items-center justify-center py-16 text-center">
+    <span className="eyebrow">{eyebrow}</span>
+    <h1 className="mt-5 font-display text-[2rem] font-semibold leading-tight tracking-wide text-ink md:text-[2.5rem]">
+      {title}
+    </h1>
+    <p className="mt-4 max-w-md text-[15px] leading-[1.95] text-muted">{description}</p>
+    {action}
+  </div>
+);
+
+const NotFoundPage: React.FC = () => {
+  const { states } = useCopy();
+  return (
+    <StateScreen
+      action={
+        <Link className="btn-ghost mt-8" to="/">
+          {states.backHome}
+        </Link>
+      }
+      description={states.notFoundDescription}
+      eyebrow="404"
+      title={states.notFoundTitle}
+    />
+  );
+};
+
+const ErrorFallback: React.FC = () => {
+  const { states } = useCopy();
+  return (
+    <StateScreen
+      action={
+        <button className="btn-ghost mt-8" onClick={() => window.location.reload()} type="button">
+          {states.reload}
+        </button>
+      }
+      description={states.errorDescription}
+      eyebrow="Error"
+      title={states.errorTitle}
+    />
+  );
+};
+
+// 路由渲染期抛错时至少留一个能自救的页面，而不是整片白屏
+class RouteErrorBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? <ErrorFallback /> : this.props.children;
+  }
+}
 
 const LoadingScreen: React.FC<{ label: string; detail: string }> = ({ label, detail }) => (
   <div className="relative flex min-h-screen items-center justify-center px-6">
@@ -494,7 +668,8 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
     // BrowserRouter 下每个路由都要有自己的 canonical，否则会互相声明重复内容
     if (config) applyCanonicalUrl(config);
-  }, [location, config]);
+    // 只跟随路径：筛选和翻页写的是查询串，逐键回到顶部会把人从列表里甩出去
+  }, [location.pathname, config]);
 
   if (configError) {
     return <LoadingScreen label="星港坐标校准失败" detail={`Configuration error · ${configError}`} />;
@@ -519,23 +694,36 @@ const App: React.FC = () => {
         <Navbar siteConfig={config.site} />
 
         <main className="relative flex-grow pt-24 md:pt-28">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <HomePage
-                  articles={homeArticles}
-                  config={config}
-                  projects={homeProjects}
-                  websites={homeWebsites}
-                  loading={loadingArticles}
-                />
-              }
-            />
-            <Route path="/projects" element={<ProjectsPage projects={projects} />} />
-            <Route path="/websites" element={<WebsitesPage websites={websites} />} />
-            <Route path="/articles" element={<ArticlesPage articles={articles} loading={loadingArticles} />} />
-          </Routes>
+          <RouteErrorBoundary>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <HomePage
+                    articles={homeArticles}
+                    config={config}
+                    projects={homeProjects}
+                    websites={homeWebsites}
+                    loading={loadingArticles}
+                  />
+                }
+              />
+              <Route path="/projects" element={<ProjectsPage projects={projects} />} />
+              <Route path="/websites" element={<WebsitesPage websites={websites} />} />
+              <Route
+                path="/articles"
+                element={
+                  <ArticlesPage
+                    articles={articles}
+                    loading={loadingArticles}
+                    pageSize={Math.max(1, display?.articlePageSize ?? 6)}
+                  />
+                }
+              />
+              {/* 没有这一条，敲错的地址会渲染出导航栏和页脚中间的一片空白 */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </RouteErrorBoundary>
         </main>
 
         <footer className="relative mt-16 border-t border-[var(--line)]">
@@ -603,6 +791,9 @@ const App: React.FC = () => {
             </div>
           </div>
         </footer>
+
+        {/* 阅读层挂在路由之外：首页只显示前几条文章，正文要用完整的 feed 列表去匹配 */}
+        <ArticleReader articles={articles} />
       </div>
     </CopyProvider>
   );
